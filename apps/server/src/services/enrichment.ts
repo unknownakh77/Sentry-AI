@@ -1,3 +1,5 @@
+import { env } from '../config/env';
+
 // A simple in-memory cache for the demo
 const cache = new Map<string, { data: any; expiresAt: number }>();
 
@@ -67,7 +69,7 @@ export async function getIpInfo(ip: string) {
 
   // Real API implementation
   try {
-    const res = await fetchWithTimeout(`https://ipinfo.io/${ip}/json?token=${process.env.IPINFO_TOKEN}`);
+    const res = await fetchWithTimeout(`https://ipinfo.io/${ip}/json?token=${env.ipInfoToken}`);
     const data = await res.json();
     setCache(cacheKey, data);
     return data;
@@ -89,8 +91,12 @@ export async function getVpnApi(ip: string) {
   }
 
   try {
-    const res = await fetchWithTimeout(`https://vpnapi.io/api/${ip}?key=${process.env.VPNAPI_KEY}`);
+    const res = await fetchWithTimeout(`https://vpnapi.io/api/${ip}?key=${env.vpnApiKey}`);
     const data = await res.json();
+    if (!data?.security) {
+      console.warn(`vpnapi response missing security for ${ip}, using fixture.`);
+      return FIXTURES.vpnapi(ip);
+    }
     setCache(cacheKey, data);
     return data;
   } catch (err) {
@@ -112,9 +118,13 @@ export async function getVirusTotalIp(ip: string) {
 
   try {
     const res = await fetchWithTimeout(`https://www.virustotal.com/api/v3/ip_addresses/${ip}`, {
-      headers: { 'x-apikey': process.env.VT_API_KEY || '' }
+      headers: { 'x-apikey': env.virusTotalApiKey || '' }
     });
     const data = await res.json();
+    if (!data?.data?.attributes?.last_analysis_stats) {
+      console.warn(`vt ip response missing stats for ${ip}, using fixture.`);
+      return FIXTURES.virustotalIp(ip);
+    }
     setCache(cacheKey, data);
     return data;
   } catch (err) {
@@ -136,9 +146,13 @@ export async function getVirusTotalDomain(domain: string) {
 
   try {
     const res = await fetchWithTimeout(`https://www.virustotal.com/api/v3/domains/${domain}`, {
-      headers: { 'x-apikey': process.env.VT_API_KEY || '' }
+      headers: { 'x-apikey': env.virusTotalApiKey || '' }
     });
     const data = await res.json();
+    if (!data?.data?.attributes?.last_analysis_stats) {
+      console.warn(`vt domain response missing stats for ${domain}, using fixture.`);
+      return FIXTURES.vtDomain(domain);
+    }
     setCache(cacheKey, data);
     return data;
   } catch (err) {

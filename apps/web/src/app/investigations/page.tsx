@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Filter, ShieldAlert, Fingerprint, Mail, Link as LinkIcon, FileCheck, RefreshCw, ChevronRight } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { Search, Filter, RefreshCw, ChevronRight } from 'lucide-react';
 import { CaseRecord } from '@sentry/shared';
 import Link from 'next/link';
+import { EventIcon, RiskBadge, formatActionLabel, formatCaseAge, formatEventTypeLabel } from '@/components/cases/presenters';
+import { apiFetch } from '@/lib/api';
 
 export default function InvestigationsPage() {
   const [cases, setCases] = useState<CaseRecord[]>([]);
@@ -14,8 +15,7 @@ export default function InvestigationsPage() {
   const fetchCases = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:3001/api/cases');
-      const data = await res.json();
+      const data = await apiFetch<{ cases?: CaseRecord[] }>('/api/cases');
       if (data.cases) {
         setCases(data.cases);
       }
@@ -35,25 +35,6 @@ export default function InvestigationsPage() {
     c.classification.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.eventType.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const getEventIcon = (type: string) => {
-    switch (type) {
-      case 'login': return <Fingerprint className="w-5 h-5 text-blue-500" />;
-      case 'phishing_email': return <Mail className="w-5 h-5 text-purple-500" />;
-      case 'url_click': return <LinkIcon className="w-5 h-5 text-amber-500" />;
-      case 'file_hash': return <FileCheck className="w-5 h-5 text-slate-500" />;
-      default: return <ShieldAlert className="w-5 h-5 text-slate-500" />;
-    }
-  };
-
-  const getRiskBadge = (classification: string) => {
-    switch (classification) {
-      case 'HIGH': return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100/50 text-red-700 border border-red-200">HIGH</span>;
-      case 'MEDIUM': return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100/50 text-amber-700 border border-amber-200">MEDIUM</span>;
-      case 'LOW': return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100/50 text-green-700 border border-green-200">LOW</span>;
-      default: return null;
-    }
-  };
 
   return (
     <div className="p-8 max-w-7xl mx-auto w-full">
@@ -110,28 +91,28 @@ export default function InvestigationsPage() {
                     <td className="px-8 py-5">
                       <div className="flex items-center space-x-4">
                         <div className="p-2.5 bg-slate-100 rounded-xl group-hover:bg-white transition-colors">
-                          {getEventIcon(c.eventType)}
+                          <EventIcon type={c.eventType} />
                         </div>
                         <div>
                           <div className="font-bold text-slate-900 font-mono text-xs mb-0.5">{c.caseId.split('-')[0]}...{c.caseId.split('-')[4]}</div>
-                          <div className="text-xs text-slate-500 capitalize">{c.eventType.replace('_', ' ')} Event</div>
+                          <div className="text-xs text-slate-500 capitalize">{formatEventTypeLabel(c.eventType)} Event</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-5 text-slate-600 font-medium">
-                      {formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}
+                      {formatCaseAge(c.createdAt)}
                       <div className="text-[10px] text-slate-400 mt-1 font-mono">{new Date(c.createdAt).toLocaleTimeString()}</div>
                     </td>
                     <td className="px-6 py-5">
                       <div className="flex flex-col space-y-2">
-                        {getRiskBadge(c.classification)}
+                        <RiskBadge classification={c.classification} tone="muted" />
                         <span className="text-[10px] font-mono font-bold text-slate-400 ml-1">SCORE: {c.riskScore}</span>
                       </div>
                     </td>
                     <td className="px-6 py-5">
                       <div className="flex flex-col space-y-1">
                         <span className="inline-flex items-center text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded uppercase tracking-wider w-fit">
-                          {c.action.replace('_', ' ')}
+                          {formatActionLabel(c.action)}
                         </span>
                         <div className="flex items-center text-[10px] text-slate-400">
                           <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${c.actionStatus === 'executed' ? 'bg-green-500' : 'bg-amber-500'}`} />

@@ -1,24 +1,45 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { 
-  ArrowLeft, CheckCircle, Clock, AlertTriangle, ShieldCheck, 
-  RefreshCw, MessageSquare, Send, Activity, Info, 
+  ArrowLeft, CheckCircle, AlertTriangle, ShieldCheck, 
+  RefreshCw, MessageSquare, Send, Activity,
   History, ShieldAlert, ExternalLink, ChevronRight, Zap, 
-  Volume2, Headphones, PlayCircle
+  Headphones
 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
+import { CaseRecord, ChatMessage, ToolCall } from '@sentry/shared';
+import { apiFetch, apiUrl } from '@/lib/api';
+import { formatActionLabel, formatCaseAge, formatEventTypeLabel } from '@/components/cases/presenters';
+
+type CaseDetail = CaseRecord & {
+  chatMessages?: ChatMessage[];
+  toolCalls: ToolCall[];
+};
+
+type StorylineLink = {
+  caseId: string;
+  classification: string;
+  eventType: string;
+  timestamp: string;
+};
+
+type Storyline = {
+  correlationReason: string;
+  links: StorylineLink[];
+};
+
+type ChatEntry = Pick<ChatMessage, 'content' | 'createdAt' | 'role'>;
 
 export default function CaseDetailPage() {
-  const { id } = useParams();
-  const [caseData, setCaseData] = useState<any>(null);
-  const [storyline, setStoryline] = useState<any>(null);
+  const { id } = useParams<{ id: string }>();
+  const [caseData, setCaseData] = useState<CaseDetail | null>(null);
+  const [storyline, setStoryline] = useState<Storyline | null>(null);
   const [loading, setLoading] = useState(true);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessage, setChatMessage] = useState('');
-  const [chatHistory, setChatHistory] = useState<any[]>([]);
+  const [chatHistory, setChatHistory] = useState<ChatEntry[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
   const [briefingLoading, setBriefingLoading] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
@@ -26,7 +47,7 @@ export default function CaseDetailPage() {
   const handlePlayBrief = async () => {
     try {
       setBriefingLoading(true);
-      const res = await fetch(`http://localhost:3001/api/cases/${id}/brief`, { method: 'POST' });
+      const res = await fetch(apiUrl(`/api/cases/${id}/brief`), { method: 'POST' });
       if (!res.ok) throw new Error('Failed to fetch audio');
       
       const blob = await res.blob();
@@ -41,8 +62,42 @@ export default function CaseDetailPage() {
   };
 
   useEffect(() => {
-    fetchCase();
-    fetchStoryline();
+    let cancelled = false;
+
+    const loadCase = async () => {
+      try {
+        setLoading(true);
+        const data = await apiFetch<{ caseData?: CaseDetail }>(`/api/cases/${id}`);
+        if (!cancelled && data.caseData) {
+          setCaseData(data.caseData);
+          setChatHistory(data.caseData.chatMessages || []);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    const loadStoryline = async () => {
+      try {
+        const data = await apiFetch<{ chain?: Storyline }>(`/api/cases/${id}/storyline`);
+        if (!cancelled) {
+          setStoryline(data.chain || null);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    void loadCase();
+    void loadStoryline();
+
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   useEffect(() => {
@@ -51,49 +106,23 @@ export default function CaseDetailPage() {
     }
   }, [chatHistory]);
 
-  const fetchCase = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch(`http://localhost:3001/api/cases/${id}`);
-      const data = await res.json();
-      if (data.caseData) {
-        setCaseData(data.caseData);
-        setChatHistory(data.caseData.chatMessages || []);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchStoryline = async () => {
-    try {
-      const res = await fetch(`http://localhost:3001/api/cases/${id}/storyline`);
-      const data = await res.json();
-      setStoryline(data.chain);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatMessage || chatLoading) return;
 
-    const userMsg = { role: 'user', content: chatMessage, createdAt: new Date().toISOString() };
+    const userMsg: ChatEntry = { role: 'user', content: chatMessage, createdAt: new Date().toISOString() };
     setChatHistory(prev => [...prev, userMsg]);
     setChatMessage('');
     setChatLoading(true);
 
     try {
-      const res = await fetch(`http://localhost:3001/api/cases/${id}/chat`, {
+      const res = await fetch(apiUrl(`/api/cases/${id}/chat`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: chatMessage }),
       });
       const data = await res.json();
-      setChatHistory(prev => [...prev, data.message]);
+      setChatHistory(prev => [...prev, data.message as ChatEntry]);
     } catch (err) {
       console.error(err);
     } finally {
@@ -104,8 +133,7 @@ export default function CaseDetailPage() {
   if (loading) return <div className="p-8 text-slate-500 flex items-center justify-center h-screen"><RefreshCw className="animate-spin w-5 h-5 mr-2" /> Orchestrating evidence...</div>;
   if (!caseData) return <div className="p-8 text-red-500">Case not found.</div>;
 
-  const { toolCalls, auditLogs, guidance, ...c } = caseData;
-  const isRolledBack = c.actionStatus === 'rolled_back';
+  const { toolCalls, guidance, ...c } = caseData;
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -128,7 +156,7 @@ export default function CaseDetailPage() {
                 </div>
                 <div className="flex items-center text-sm text-slate-500 font-medium">
                   <Activity className="w-4 h-4 mr-1.5 text-slate-400" />
-                  {c.eventType.replace('_', ' ').toUpperCase()} &bull; {formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}
+                  {formatEventTypeLabel(c.eventType).toUpperCase()} &bull; {formatCaseAge(c.createdAt)}
                 </div>
               </div>
             </div>
@@ -179,7 +207,7 @@ export default function CaseDetailPage() {
                 </div>
                 
                 <div className="flex items-start">
-                  {storyline.links.map((link: any, idx: number) => (
+                  {storyline.links.map((link, idx) => (
                     <div key={link.caseId} className="flex-1 group relative">
                       {/* Connection Line */}
                       {idx < storyline.links.length - 1 && (
@@ -233,7 +261,7 @@ export default function CaseDetailPage() {
                 <div className="space-y-6 relative z-10">
                   <div>
                     <p className="text-sm font-medium text-slate-200 leading-relaxed italic border-l-2 border-blue-500 pl-4 py-1">
-                      "{guidance?.summary || 'No guidance summary available.'}"
+                      &ldquo;{guidance?.summary || 'No guidance summary available.'}&rdquo;
                     </p>
                   </div>
 
@@ -280,7 +308,7 @@ export default function CaseDetailPage() {
                     {c.action === 'allow' ? <ShieldCheck className="w-6 h-6 text-white" /> : <AlertTriangle className="w-6 h-6 text-white" />}
                   </div>
                   <div>
-                    <div className="text-lg font-black text-slate-900 tracking-tight uppercase">{c.action.replace('_', ' ')}</div>
+                    <div className="text-lg font-black text-slate-900 tracking-tight uppercase">{formatActionLabel(c.action)}</div>
                     <div className="text-xs text-slate-500 font-medium">Auto-enforced by Sentry Engine</div>
                   </div>
                 </div>
@@ -319,7 +347,7 @@ export default function CaseDetailPage() {
                 <div className="space-y-12 relative">
                   <div className="absolute top-0 left-5 w-0.5 h-full bg-slate-50 z-0" />
                   
-                  {toolCalls.map((tc: any, index: number) => (
+                  {toolCalls.map((tc) => (
                     <div key={tc.id} className="relative pl-14 group z-10 transition-all hover:translate-x-1">
                       <div className={`absolute left-[5px] top-1 w-6 h-6 rounded-full border-4 border-white shadow-md flex items-center justify-center transition-all ${
                         tc.status === 'success' ? 'bg-blue-600' : 'bg-red-600'

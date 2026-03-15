@@ -28,8 +28,21 @@ const DOMAINS = [
   'login-portal.info'
 ];
 
+export const SCENARIO_NAMES = [
+  'safe_login',
+  'malicious_login',
+  'phishing_email',
+  'url_click'
+] as const;
+
+export type ScenarioName = typeof SCENARIO_NAMES[number];
+
 export class SimulatorService {
-  static generateEvent(scenario: string): NormalizedEvent {
+  static listScenarioNames() {
+    return [...SCENARIO_NAMES];
+  }
+
+  static generateEvent(scenario: ScenarioName): NormalizedEvent {
     const user = USERS[Math.floor(Math.random() * USERS.length)];
     const eventId = uuidv4();
     const timestamp = new Date().toISOString();

@@ -5,7 +5,7 @@
   --color-sentry-light: #f8fafc;
   --color-sentry-accent: #3b82f6;
   
-  --font-sans: var(--font-inter);
+  --font-sans: "Segoe UI", "Helvetica Neue", sans-serif;
 }
 
 body {

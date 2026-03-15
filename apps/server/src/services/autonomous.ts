@@ -1,4 +1,4 @@
-import { SimulatorService } from './simulator';
+import { SCENARIO_NAMES, SimulatorService } from './simulator';
 import { runInvestigation } from '../agent';
 
 export class AutonomousService {
@@ -10,8 +10,7 @@ export class AutonomousService {
     console.log('[AUTONOMOUS] Starting background event generator...');
     this.interval = setInterval(async () => {
       try {
-        const scenarios = ['safe_login', 'malicious_login', 'phishing_email', 'url_click'];
-        const randomScenario = scenarios[Math.floor(Math.random() * scenarios.length)];
+        const randomScenario = SCENARIO_NAMES[Math.floor(Math.random() * SCENARIO_NAMES.length)];
         
         console.log(`[AUTONOMOUS] Triggering scenario: ${randomScenario}`);
         const event = SimulatorService.generateEvent(randomScenario);

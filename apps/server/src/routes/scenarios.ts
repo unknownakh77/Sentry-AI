@@ -1,23 +1,14 @@
 import { Router } from 'express';
-import { scenarios } from '../data/scenarios';
 import { runInvestigation } from '../agent';
-import { SimulatorService } from '../services/simulator';
+import { ScenarioName, SimulatorService } from '../services/simulator';
 
 const router = Router();
 
-// Get list of available scenarios
-router.get('/', (req, res) => {
-  res.json({ scenarios: Object.keys(scenarios) });
-});
-
-// Replay a specific scenario
 router.post('/:name/replay', async (req, res) => {
   try {
-    const event = SimulatorService.generateEvent(req.params.name);
-    
-    // Run the investigation synchronously for the demo
+    const event = SimulatorService.generateEvent(req.params.name as ScenarioName);
     const finalState = await runInvestigation(event) as any;
-    
+
     res.json({
       success: true,
       message: `Scenario ${req.params.name} replayed with randomized event`,

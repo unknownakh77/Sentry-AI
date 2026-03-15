@@ -1,7 +1,7 @@
 import { StateGraph, END, START } from '@langchain/langgraph';
 import { AgentState, InitialState } from './state';
 import { getIpInfo, getVpnApi, getVirusTotalIp, getVirusTotalDomain } from '../services/enrichment';
-import { getRecentLogins, getAllowlistMatch, saveCase, saveToolCall } from '../db';
+import { getRecentLogins, saveCase, saveToolCall } from '../db';
 import { askBackboard } from '../services/backboard';
 import { v4 as uuidv4 } from 'uuid';
 import { NormalizedEvent } from '@sentry/shared';
@@ -96,15 +96,16 @@ const threatIntelNode = async (state: AgentState): Promise<Partial<AgentState>> 
     
     if (state.plan.tools.includes('vpn_intel')) {
       const vpnRes = await getVpnApi(ip);
-      updates.vpn_detected = vpnRes.security.vpn || vpnRes.security.proxy || vpnRes.security.tor;
+      updates.vpn_detected = !!(vpnRes?.security?.vpn || vpnRes?.security?.proxy || vpnRes?.security?.tor);
       recordTool(state, 'vpnapi', `VPN/Proxy detected: ${updates.vpn_detected}`, vpnRes);
     }
     
     if (state.plan.tools.includes('ip_intel')) {
       const vtIp = await getVirusTotalIp(ip);
-      const stats = vtIp.data.attributes.last_analysis_stats;
-      updates.ip_malicious = stats.malicious > 0;
-      recordTool(state, 'virustotal_ip', `Malicious hits: ${stats.malicious}`, vtIp);
+      const stats = vtIp?.data?.attributes?.last_analysis_stats;
+      const maliciousHits = Number(stats?.malicious || 0);
+      updates.ip_malicious = maliciousHits > 0;
+      recordTool(state, 'virustotal_ip', `Malicious hits: ${maliciousHits}`, vtIp);
     }
   }
 
@@ -112,9 +113,10 @@ const threatIntelNode = async (state: AgentState): Promise<Partial<AgentState>> 
     const domain = state.event.artifacts.domain || (state.event.artifacts.url ? new URL(state.event.artifacts.url).hostname : null);
     if (domain) {
       const vtDomain = await getVirusTotalDomain(domain);
-      const stats = vtDomain.data.attributes.last_analysis_stats;
-      updates.domain_malicious = stats.malicious > 0;
-      recordTool(state, 'virustotal_domain', `Malicious hits: ${stats.malicious}`, vtDomain);
+      const stats = vtDomain?.data?.attributes?.last_analysis_stats;
+      const maliciousHits = Number(stats?.malicious || 0);
+      updates.domain_malicious = maliciousHits > 0;
+      recordTool(state, 'virustotal_domain', `Malicious hits: ${maliciousHits}`, vtDomain);
     }
   }
 

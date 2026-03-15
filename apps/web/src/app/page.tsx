@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ShieldAlert, Fingerprint, Mail, Link as LinkIcon, FileCheck, RefreshCw, Play } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { RefreshCw, Play } from 'lucide-react';
 import { CaseRecord } from '@sentry/shared';
 import Link from 'next/link';
+import { EventIcon, RiskBadge, formatActionLabel, formatCaseAge, formatEventTypeLabel } from '@/components/cases/presenters';
+import { apiFetch, apiUrl } from '@/lib/api';
 
 export default function DashboardPage() {
   const [cases, setCases] = useState<CaseRecord[]>([]);
@@ -14,8 +15,7 @@ export default function DashboardPage() {
   const fetchCases = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:3001/api/cases/recent');
-      const data = await res.json();
+      const data = await apiFetch<{ cases?: CaseRecord[] }>('/api/cases/recent');
       if (data.cases) {
         setCases(data.cases.slice(0, 5));
       }
@@ -36,7 +36,7 @@ export default function DashboardPage() {
   const simulateScenario = async (scenario: string) => {
     try {
       setSimulating(scenario);
-      await fetch(`http://localhost:3001/api/scenarios/${scenario}/replay`, { method: 'POST' });
+      await fetch(apiUrl(`/api/scenarios/${scenario}/replay`), { method: 'POST' });
       await fetchCases();
     } catch (err) {
       console.error(err);
@@ -52,25 +52,6 @@ export default function DashboardPage() {
     { label: 'Auto-Contained', value: cases.filter(c => c.actionStatus === 'executed' && c.action !== 'allow').length, color: 'text-blue-600' },
     { label: 'Safe Allowed', value: cases.filter(c => c.action === 'allow').length, color: 'text-green-600' },
   ];
-
-  const getEventIcon = (type: string) => {
-    switch (type) {
-      case 'login': return <Fingerprint className="w-5 h-5 text-blue-500" />;
-      case 'phishing_email': return <Mail className="w-5 h-5 text-purple-500" />;
-      case 'url_click': return <LinkIcon className="w-5 h-5 text-amber-500" />;
-      case 'file_hash': return <FileCheck className="w-5 h-5 text-slate-500" />;
-      default: return <ShieldAlert className="w-5 h-5 text-slate-500" />;
-    }
-  };
-
-  const getRiskBadge = (classification: string) => {
-    switch (classification) {
-      case 'HIGH': return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800 border border-red-200">HIGH</span>;
-      case 'MEDIUM': return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">MEDIUM</span>;
-      case 'LOW': return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800 border border-green-200">LOW</span>;
-      default: return null;
-    }
-  };
 
   return (
     <div className="p-8 max-w-7xl mx-auto w-full">
@@ -139,27 +120,27 @@ export default function DashboardPage() {
                         <td className="px-8 py-5">
                           <div className="flex items-center space-x-4">
                             <div className="p-2.5 bg-slate-50 rounded-xl group-hover:bg-white transition-colors border border-transparent group-hover:border-blue-100">
-                              {getEventIcon(c.eventType)}
+                              <EventIcon type={c.eventType} />
                             </div>
                             <div>
-                               <div className="font-black text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors capitalize">{c.eventType.replace('_', ' ')}</div>
+                               <div className="font-black text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors capitalize">{formatEventTypeLabel(c.eventType)}</div>
                                <div className="text-[10px] font-mono font-bold text-slate-400 uppercase">ID: {c.caseId.slice(0, 8)}</div>
                             </div>
                           </div>
                         </td>
                         <td className="px-8 py-5 text-slate-500 font-semibold text-xs whitespace-nowrap">
-                          {formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}
+                          {formatCaseAge(c.createdAt)}
                         </td>
                         <td className="px-8 py-5 text-center">
                           <div className="flex flex-col items-center">
-                            {getRiskBadge(c.classification)}
+                            <RiskBadge classification={c.classification} />
                             <span className="text-[9px] font-mono font-black text-slate-300 mt-1">SCORE {c.riskScore}</span>
                           </div>
                         </td>
                         <td className="px-8 py-5 text-right">
                           <div className="flex items-center justify-end space-x-3">
                             <span className="inline-flex items-center text-[10px] font-black text-slate-600 bg-slate-100 px-2 py-0.5 rounded-lg uppercase tracking-wider">
-                              {c.action.replace('_', ' ')}
+                              {formatActionLabel(c.action)}
                             </span>
                             <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 transition-colors" />
                           </div>
@@ -215,7 +196,7 @@ export default function DashboardPage() {
   );
 }
 
-function ChevronRight({ className }: any) {
+function ChevronRight({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
@@ -223,7 +204,19 @@ function ChevronRight({ className }: any) {
   );
 }
 
-function ScenarioButton({ label, desc, onClick, loading, variant = 'default' }: any) {
+function ScenarioButton({
+  label,
+  desc,
+  onClick,
+  loading,
+  variant = 'default',
+}: {
+  label: string;
+  desc: string;
+  onClick: () => void;
+  loading: boolean;
+  variant?: 'default' | 'danger' | 'warning';
+}) {
   const baseColors = variant === 'danger' 
     ? 'bg-red-500/10 border-red-500/20 hover:bg-red-500/20 hover:border-red-500/40 text-red-400' 
     : variant === 'warning'

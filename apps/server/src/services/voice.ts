@@ -1,6 +1,8 @@
 
+import { env } from '../config/env';
+
 export async function generateVoiceBrief(text: string): Promise<Buffer | null> {
-  const apiKey = process.env.ELEVENLABS_API_KEY;
+  const apiKey = env.elevenLabsApiKey;
   const voiceId = '21m00Tcm4TlvDq8ikWAM'; // Default "Rachel" voice
 
   if (!apiKey) {

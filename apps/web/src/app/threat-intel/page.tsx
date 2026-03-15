@@ -1,24 +1,25 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Globe, Shield, Activity, Database, AlertCircle, CheckCircle2, Info } from 'lucide-react';
+import { Search, Globe, Shield, Activity, Database, AlertCircle, CheckCircle2, Info, RefreshCw } from 'lucide-react';
+import { ThreatIntelResult } from '@sentry/shared';
+import { apiFetch } from '@/lib/api';
 
 export default function ThreatIntelPage() {
   const [query, setQuery] = useState('');
   const [type, setType] = useState<'ip' | 'domain' | 'url' | 'file_hash'>('ip');
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<ThreatIntelResult | null>(null);
 
   const handleLookup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:3001/api/cases/threat-intel/lookup', {
+      const data = await apiFetch<{ result: ThreatIntelResult }>('/api/cases/threat-intel/lookup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query, type }),
       });
-      const data = await res.json();
       setResult(data.result);
     } catch (err) {
       console.error(err);
@@ -52,7 +53,7 @@ export default function ThreatIntelPage() {
                     <button
                       key={t}
                       type="button"
-                      onClick={() => setType(t as any)}
+                      onClick={() => setType(t as typeof type)}
                       className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
                         type === t 
                         ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-sm' 
@@ -164,7 +165,7 @@ export default function ThreatIntelPage() {
                 </div>
                 <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-3">Analyst Summary</h4>
                 <p className="text-sm leading-relaxed text-slate-200 font-medium italic">
-                  "{result.summary}"
+                  &ldquo;{result.summary}&rdquo;
                 </p>
               </div>
             </div>
@@ -179,8 +180,4 @@ export default function ThreatIntelPage() {
       </div>
     </div>
   );
-}
-
-function RefreshCw({ className }: any) {
-  return <Activity className={`${className} animate-pulse px-4`} />;
 }

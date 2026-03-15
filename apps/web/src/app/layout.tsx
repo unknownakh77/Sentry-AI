@@ -1,12 +1,9 @@
 'use client';
 
 import './globals.css';
-import { Inter } from 'next/font/google';
 import { Shield, LayoutDashboard, History, Search } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-
-const inter = Inter({ subsets: ['latin'] });
 
 export default function RootLayout({
   children,
@@ -23,7 +20,7 @@ export default function RootLayout({
 
   return (
     <html lang="en">
-      <body className={`${inter.className} bg-slate-50 flex h-screen overflow-hidden`}>
+      <body className="bg-slate-50 flex h-screen overflow-hidden font-sans">
         {/* Sidebar */}
         <aside className="w-72 bg-slate-900 text-slate-400 flex flex-col border-r border-slate-800 shadow-2xl z-20">
           <div className="p-8 pb-10 flex items-center space-x-3">

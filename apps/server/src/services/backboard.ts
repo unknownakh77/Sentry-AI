@@ -1,6 +1,8 @@
 
+import { env } from '../config/env';
+
 export async function askBackboard(prompt: string, context: string = ''): Promise<string> {
-  const apiKey = process.env.BACKBOARD_API_KEY;
+  const apiKey = env.backboardApiKey;
   if (!apiKey) {
     console.warn('[BACKBOARD] No API key found, returning mock response.');
     return "This is a mock response from Sentry AI. Please configure BACKBOARD_API_KEY for real intelligence.";

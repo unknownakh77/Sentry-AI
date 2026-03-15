@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getAllCases, getCase, saveChatMessage, saveAttackChain } from '../db';
+import { getAllCases, getCase, saveChatMessage } from '../db';
 import { askBackboard } from '../services/backboard';
 import { generateVoiceBrief } from '../services/voice';
 import { v4 as uuidv4 } from 'uuid';
@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 const router = Router();
 
 // Get all cases
-router.get('/', (req, res) => {
+router.get('/', (_req, res) => {
   try {
     const cases = getAllCases();
     res.json({ cases });
@@ -17,7 +17,7 @@ router.get('/', (req, res) => {
 });
 
 // Get recent 5 cases for dashboard
-router.get('/recent', (req, res) => {
+router.get('/recent', (_req, res) => {
   try {
     const cases = getAllCases().slice(0, 5);
     res.json({ cases });
@@ -118,11 +118,8 @@ router.get('/:id/storyline', (req, res) => {
 
     const allCases = getAllCases() as any[];
     const currentCase = caseData;
-    
-    // Improved correlation: Link cases with SAME user OR SAME sourceIp
-    // We parse evidenceList to find the source IP if it's not a top-level property
+
     const getIp = (c: any) => {
-       // Mock logic for demo correlation
        if (c.eventType === 'login') return '198.51.100.10'; // Shared demo IP
        return '8.8.8.8';
     };
