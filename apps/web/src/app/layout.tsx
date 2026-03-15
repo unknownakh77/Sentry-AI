@@ -41,93 +41,83 @@ export default function RootLayout({
 
   return (
     <html lang="en">
-      <body className="flex h-screen overflow-hidden font-sans antialiased">
+      <body className="flex h-screen overflow-hidden font-sans antialiased" style={{background:'#020c1b',color:'#e2f0ff'}}>
         {/* Sidebar */}
         <aside
-          className={`bg-[#0a1221] text-slate-400 flex flex-col border-r border-slate-800/70 shadow-2xl z-20 overflow-hidden transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-            sidebarCollapsed ? 'w-20' : 'w-72'
+          className={`flex flex-col z-20 overflow-hidden transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+            sidebarCollapsed ? 'w-[72px]' : 'w-64'
           }`}
+          style={{background:'#040e1f', borderRight:'1px solid rgba(0,194,255,0.08)'}}
         >
-          <div className={`px-4 border-b border-slate-800/60 transition-[padding] duration-400 ${sidebarCollapsed ? 'py-3' : 'py-5'}`}>
-            <div className="relative flex items-center">
-              <div
-                className={`pr-10 overflow-hidden transition-all duration-300 ${
-                  sidebarCollapsed ? 'max-w-0 opacity-0' : 'max-w-[220px] opacity-100'
-                }`}
-              >
-                <SentryLogo />
-              </div>
-              <button
-                onClick={() => setSidebarCollapsed((prev) => !prev)}
-                className="absolute right-0 h-8 w-8 rounded-lg border border-slate-700/70 bg-slate-900/40 text-slate-300 hover:text-white hover:bg-slate-800 transition-all duration-300"
-                aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              >
-                {sidebarCollapsed ? <ChevronRight className="w-4 h-4 mx-auto" /> : <ChevronLeft className="w-4 h-4 mx-auto" />}
-              </button>
+          {/* Logo */}
+          <div className={`flex items-center border-b relative transition-all duration-300 ${sidebarCollapsed ? 'px-3 py-4 justify-center' : 'px-5 py-4'}`}
+            style={{borderColor:'rgba(0,194,255,0.08)'}}>
+            <div className={`overflow-hidden transition-all duration-300 ${sidebarCollapsed ? 'max-w-0 opacity-0' : 'max-w-[180px] opacity-100'}`}>
+              <SentryLogo />
             </div>
+            <button
+              onClick={() => setSidebarCollapsed((prev) => !prev)}
+              className={`${sidebarCollapsed ? 'relative' : 'absolute right-3'} h-7 w-7 rounded-lg flex items-center justify-center transition-all duration-300`}
+              style={{border:'1px solid rgba(0,194,255,0.15)', background:'rgba(0,194,255,0.05)', color:'rgba(0,194,255,0.6)'}}
+              aria-label={sidebarCollapsed ? 'Expand' : 'Collapse'}
+            >
+              {sidebarCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
+            </button>
           </div>
 
-          <nav
-            className={`flex-1 ${
-              sidebarCollapsed
-                ? 'px-2.5 py-4 flex flex-col items-center justify-center gap-2.5'
-                : 'px-4 py-5 space-y-1.5'
-            }`}
-          >
+          {/* Live status badge */}
+          {!sidebarCollapsed && (
+            <div className="mx-4 mt-4 mb-1 flex items-center gap-2 px-3 py-2 rounded-lg" style={{background:'rgba(0,229,160,0.06)', border:'1px solid rgba(0,229,160,0.15)'}}>
+              <span className="live-dot" />
+              <span className="text-[10px] font-bold uppercase tracking-widest" style={{color:'#00e5a0'}}>System Online</span>
+            </div>
+          )}
+
+          <nav className={`flex-1 mt-3 ${sidebarCollapsed ? 'px-2 flex flex-col items-center gap-1.5' : 'px-3 space-y-1'}`}>
             {navItems.map((item) => {
               const isActive = pathname === item.href;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center rounded-xl transition-all duration-300 group ${
-                    sidebarCollapsed
-                      ? 'justify-center h-12 w-12'
-                      : 'space-x-3 px-4 py-3'
-                  } ${
-                    isActive
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-600/25 font-bold'
-                      : 'hover:bg-slate-800/70 hover:text-slate-200 text-slate-400 font-medium'
-                  }`}
                   title={sidebarCollapsed ? item.label : undefined}
                   aria-current={isActive ? 'page' : undefined}
+                  className={`flex items-center rounded-xl transition-all duration-200 group ${
+                    sidebarCollapsed ? 'justify-center h-11 w-11' : 'space-x-3 px-4 py-2.5'
+                  }`}
+                  style={isActive
+                    ? {background:'rgba(0,194,255,0.12)', border:'1px solid rgba(0,194,255,0.25)', color:'#00c2ff'}
+                    : {border:'1px solid transparent', color:'rgba(120,160,200,0.7)'}
+                  }
+                  onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'rgba(0,194,255,0.05)'; }}
+                  onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
                 >
-                  <item.icon className={`w-[18px] h-[18px] shrink-0 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-200'}`} />
-                  <span
-                    className={`text-sm whitespace-nowrap overflow-hidden transition-all duration-300 ${
-                      sidebarCollapsed ? 'max-w-0 opacity-0' : 'max-w-[160px] opacity-100'
-                    }`}
-                  >
+                  <item.icon className="w-4 h-4 shrink-0" />
+                  <span className={`text-sm font-semibold whitespace-nowrap overflow-hidden transition-all duration-300 ${sidebarCollapsed ? 'max-w-0 opacity-0' : 'max-w-[140px] opacity-100'}`}>
                     {item.label}
                   </span>
+                  {isActive && !sidebarCollapsed && <span className="ml-auto w-1.5 h-1.5 rounded-full" style={{background:'#00c2ff', boxShadow:'0 0 6px #00c2ff'}} />}
                 </Link>
               );
             })}
           </nav>
 
-          <div className={`p-4 border-t border-slate-800/70 ${sidebarCollapsed ? 'px-2.5 pt-3' : 'px-4'}`}>
-            <div
-              className={`bg-slate-800/45 rounded-xl border border-slate-700/50 transition-all duration-300 ${
-                sidebarCollapsed ? 'h-12 w-12 mx-auto flex items-center justify-center' : 'p-4 flex items-center space-x-3'
-              }`}
-            >
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-500 shrink-0" />
-              <div
-                className={`flex-1 overflow-hidden transition-all duration-300 ${
-                  sidebarCollapsed ? 'max-w-0 opacity-0' : 'max-w-[160px] opacity-100'
-                }`}
-              >
-                <div className="text-[10px] font-black text-white truncate">ANALYST_01</div>
-                <div className="text-[9px] font-bold text-slate-500 uppercase">TIER 1 RESPONDER</div>
+          {/* User */}
+          <div className="p-3 mt-2" style={{borderTop:'1px solid rgba(0,194,255,0.08)'}}>
+            <div className={`rounded-xl transition-all duration-300 ${sidebarCollapsed ? 'flex justify-center py-2' : 'flex items-center gap-3 px-3 py-2.5'}`}
+              style={{background:'rgba(0,194,255,0.04)', border:'1px solid rgba(0,194,255,0.08)'}}>
+              <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center font-black text-xs"
+                style={{background:'linear-gradient(135deg,#0080d0,#00c2ff)', color:'#020c1b'}}>A1</div>
+              <div className={`overflow-hidden transition-all duration-300 ${sidebarCollapsed ? 'max-w-0 opacity-0' : 'max-w-[140px] opacity-100'}`}>
+                <div className="text-[11px] font-black" style={{color:'#e2f0ff'}}>ANALYST_01</div>
+                <div className="text-[9px] font-bold uppercase tracking-wider" style={{color:'rgba(0,194,255,0.5)'}}>Tier 1 Responder</div>
               </div>
             </div>
           </div>
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto scroll-smooth relative">
-           <div className="absolute top-0 left-0 w-full h-[300px] bg-gradient-to-b from-blue-100/40 to-transparent pointer-events-none" />
+        <main className="flex-1 overflow-y-auto scroll-smooth relative" style={{background:'#020c1b'}}>
            <div key={pathname} className="relative z-10 page-transition">
              {children}
            </div>
