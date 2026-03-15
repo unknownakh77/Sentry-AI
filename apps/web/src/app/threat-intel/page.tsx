@@ -152,7 +152,17 @@ export default function ThreatIntelPage() {
                     </div>
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-slate-500">Tor Exit Node</span>
-                      <span className="font-bold text-slate-800">NO</span>
+                      <span className="font-bold text-slate-800">{result.details.tor ? 'YES' : 'NO'}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-500">Malicious Detections</span>
+                      <span className={`font-bold ${(result.details.maliciousDetections || 0) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        {result.details.maliciousDetections || 0}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-500">Suspicious Detections</span>
+                      <span className="font-bold text-amber-600">{result.details.suspiciousDetections || 0}</span>
                     </div>
                   </div>
                 </div>

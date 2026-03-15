@@ -15,12 +15,16 @@ export const NormalizedEventSchema = z.object({
     sender: z.string().nullable().optional(),
     subject: z.string().nullable().optional(),
     fileHash: z.string().nullable().optional(),
+    device: z.string().nullable().optional(),
+    alertDescription: z.string().nullable().optional(),
+    additionalLogs: z.string().nullable().optional(),
   }),
   context: z.object({
     mfaUsed: z.boolean().default(false),
     privilegedUser: z.boolean().default(false),
     allowlistMatch: z.boolean().default(false),
     sessionTag: z.string().nullable().optional(),
+    authenticationMethod: z.string().nullable().optional(),
   }),
 });
 
@@ -74,9 +78,59 @@ export const CaseRecordSchema = z.object({
   evidenceList: z.array(z.string()).optional(), 
   guidance: z.object({
     summary: z.string(),
-    threatContext: z.string(),
-    containmentSteps: z.array(z.string()),
+    threatContext: z.string().optional(),
+    containmentSteps: z.array(z.string()).optional(),
     escalationAdvice: z.string(),
+    investigationReport: z.object({
+      alertSummary: z.string(),
+      riskClassification: z.object({
+        category: z.enum([
+          'False Positive',
+          'Benign Activity',
+          'Suspicious Activity',
+          'Confirmed Security Incident',
+        ]),
+        justification: z.string(),
+      }),
+      mitreMapping: z.object({
+        tactic: z.string(),
+        technique_name: z.string(),
+        technique_id: z.string(),
+        explanation: z.string(),
+      }),
+      threatIntelligence: z.object({
+        ipAnalysis: z.object({
+          geolocation: z.string(),
+          asnIsp: z.string(),
+          vpnProxyTor: z.string(),
+        }),
+        reputation: z.object({
+          provider: z.string(),
+          maliciousDetections: z.number(),
+          verdict: z.string(),
+        }),
+      }),
+      behavioralAnalysis: z.object({
+        impossibleTravel: z.boolean(),
+        newLoginLocation: z.boolean(),
+        unusualDevice: z.boolean(),
+        repeatedLoginFailures: z.boolean(),
+        offHoursLogin: z.boolean(),
+        notes: z.string(),
+      }),
+      impactAssessment: z.object({
+        likelihoodOfCompromise: z.string(),
+        privilegeRisk: z.string(),
+        lateralMovementRisk: z.string(),
+        summary: z.string(),
+      }),
+      recommendedSocActions: z.array(z.string()),
+      finalVerdict: z.object({
+        severity: z.enum(['Low', 'Medium', 'High', 'Critical']),
+        confidence: z.string(),
+        finalTriageConclusion: z.string(),
+      }),
+    }).optional(),
   }).optional(),
 });
 export type CaseRecord = z.infer<typeof CaseRecordSchema>;

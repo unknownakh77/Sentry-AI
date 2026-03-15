@@ -28,11 +28,17 @@ const graphStateChannels: any = {
   intent_score: null,
   intent_flags: null,
   impossible_travel: null,
+  new_login_location: null,
+  unusual_device: null,
+  repeated_login_failures: null,
+  off_hours_login: null,
   login_history_summary: null,
   geo_location: null,
   vpn_detected: null,
   ip_malicious: null,
+  ip_malicious_count: null,
   domain_malicious: null,
+  domain_malicious_count: null,
   spf_pass: null,
   evidence_list: null,
   risk_score: null,
@@ -68,18 +74,39 @@ const behaviorNode = async (state: AgentState): Promise<Partial<AgentState>> => 
   
   const history = getRecentLogins(state.event.user) as any[];
   let impossible_travel = false;
+  let new_login_location = false;
+  let repeated_login_failures = false;
+  let off_hours_login = false;
+  let unusual_device = false;
+  let login_history_summary = 'Insufficient prior history to baseline this user.';
+  const currentGeo = state.geo_location
+    ? `${state.geo_location.city}, ${state.geo_location.region}, ${state.geo_location.country}`
+    : null;
   
-  if (history.length > 0 && state.geo_location) {
-    // Naive impossible travel check for demo: If last was CA and current is RU, flag it
+  if (history.length > 0) {
     const lastGeo = history[0].geo;
-    if (lastGeo && lastGeo !== (`${state.geo_location.city}, ${state.geo_location.region}, ${state.geo_location.country}`)) {
-       // Just blindly flag for demo if they differ, or hardcode the RU case
-       if (state.geo_location.country === 'RU') impossible_travel = true;
+    const failedAttempts = history.filter((entry) => entry.result !== 'success').length;
+    repeated_login_failures = failedAttempts >= 3;
+
+    if (state.geo_location && lastGeo && currentGeo && lastGeo !== currentGeo) {
+      new_login_location = true;
+      if (state.geo_location.country === 'RU' || state.geo_location.country === 'CN') {
+        impossible_travel = true;
+      }
     }
+
+    const hour = new Date(state.event.timestamp).getHours();
+    off_hours_login = hour < 6 || hour >= 22;
+    unusual_device = !!state.event.context.sessionTag && state.event.context.sessionTag === 'unknown_mobile';
+    login_history_summary = `Reviewed ${history.length} previous logins; failed attempts in baseline window: ${failedAttempts}.`;
   }
 
-  recordTool(state, 'behavior_analysis', `Analyzed ${history.length} recent logins. Impossible travel: ${impossible_travel}`);
-  return { impossible_travel };
+  recordTool(
+    state,
+    'behavior_analysis',
+    `Analyzed ${history.length} recent logins. Impossible travel: ${impossible_travel}. New location: ${new_login_location}. Repeated failures: ${repeated_login_failures}.`
+  );
+  return { impossible_travel, new_login_location, repeated_login_failures, off_hours_login, unusual_device, login_history_summary };
 };
 
 // Node 4: Threat Intel
@@ -105,6 +132,7 @@ const threatIntelNode = async (state: AgentState): Promise<Partial<AgentState>> 
       const stats = vtIp?.data?.attributes?.last_analysis_stats;
       const maliciousHits = Number(stats?.malicious || 0);
       updates.ip_malicious = maliciousHits > 0;
+      updates.ip_malicious_count = maliciousHits;
       recordTool(state, 'virustotal_ip', `Malicious hits: ${maliciousHits}`, vtIp);
     }
   }
@@ -116,6 +144,7 @@ const threatIntelNode = async (state: AgentState): Promise<Partial<AgentState>> 
       const stats = vtDomain?.data?.attributes?.last_analysis_stats;
       const maliciousHits = Number(stats?.malicious || 0);
       updates.domain_malicious = maliciousHits > 0;
+      updates.domain_malicious_count = maliciousHits;
       recordTool(state, 'virustotal_domain', `Malicious hits: ${maliciousHits}`, vtDomain);
     }
   }
@@ -151,6 +180,21 @@ const decisionNode = async (state: AgentState): Promise<Partial<AgentState>> => 
     score += 20;
     evidence.push('Session originates from known VPN/Tor exit node');
   }
+
+  if (state.new_login_location) {
+    score += 10;
+    evidence.push('Login originated from a new geolocation for this user');
+  }
+
+  if (state.repeated_login_failures) {
+    score += 15;
+    evidence.push('User baseline includes repeated recent login failures');
+  }
+
+  if (state.off_hours_login) {
+    score += 10;
+    evidence.push('Sign-in occurred during off-hours');
+  }
   
   if (state.spf_pass === false) {
     score += 15;
@@ -174,6 +218,63 @@ const decisionNode = async (state: AgentState): Promise<Partial<AgentState>> => 
   }
 
   recordTool(state, 'policy_engine', `Risk Score computed: ${score} (${classification}). Policy action: ${action}`);
+
+  const nistCategory = score >= 75
+    ? 'Confirmed Security Incident'
+    : score >= 35
+      ? 'Suspicious Activity'
+      : score >= 5
+        ? 'Benign Activity'
+        : 'False Positive';
+
+  const severity = score >= 85 ? 'Critical' : score >= 60 ? 'High' : score >= 30 ? 'Medium' : 'Low';
+  const confidence = score >= 70 ? 'High' : score >= 35 ? 'Medium' : 'Low';
+
+  const mitre = state.event.eventType === 'login'
+    ? state.repeated_login_failures
+      ? {
+          tactic: 'Credential Access',
+          technique_name: 'Brute Force',
+          technique_id: 'T1110',
+          explanation: 'Repeated authentication failures followed by access suggest credential-guessing activity.',
+        }
+      : {
+          tactic: 'Defense Evasion',
+          technique_name: 'Valid Accounts',
+          technique_id: 'T1078',
+          explanation: 'Sign-in activity using valid credentials from unusual infrastructure may indicate account misuse.',
+        }
+    : state.event.eventType === 'phishing_email'
+      ? {
+          tactic: 'Initial Access',
+          technique_name: 'Phishing',
+          technique_id: 'T1566',
+          explanation: 'Alert pattern aligns with phishing delivery and credential harvesting behavior.',
+        }
+      : {
+          tactic: 'Execution',
+          technique_name: 'Drive-by Compromise',
+          technique_id: 'T1189',
+          explanation: 'URL interaction indicates potential browser-based compromise risk.',
+        };
+
+  const recommendedSocActions = (() => {
+    if (nistCategory === 'False Positive') return ['close alert', 'monitor activity'];
+    if (nistCategory === 'Benign Activity') return ['monitor activity', 'require MFA'];
+    if (nistCategory === 'Suspicious Activity') return ['require MFA', 'force password reset', 'revoke sessions', 'escalate investigation'];
+    return ['force password reset', 'revoke sessions', 'block IP', 'escalate investigation'];
+  })();
+
+  const geoLabel = state.geo_location
+    ? `${state.geo_location.city || 'Unknown'}, ${state.geo_location.region || 'Unknown'}, ${state.geo_location.country || 'Unknown'}`
+    : 'Unknown';
+  const asnLabel = state.geo_location?.org || 'Unknown ASN/ISP';
+  const vpnLabel = state.vpn_detected ? 'VPN/proxy/TOR signal detected' : 'No VPN/proxy/TOR signal detected';
+
+  const alertSummary = `Alert for user ${state.event.user} from source IP ${state.event.sourceIp}. Device/session: ${state.event.artifacts.device || state.event.context.sessionTag || 'unknown'}, location: ${geoLabel}, timestamp: ${new Date(state.event.timestamp).toISOString()}, authentication method: ${state.event.context.authenticationMethod || (state.event.context.mfaUsed ? 'MFA-assisted login' : 'password-only login')}. Alert description: ${state.event.artifacts.alertDescription || state.event.eventType}. Additional logs: ${state.login_history_summary || state.event.artifacts.additionalLogs || 'No additional logs provided.'}`;
+  const impactSummary = state.event.context.privilegedUser
+    ? 'Privileged account context increases business impact if this session is malicious.'
+    : 'Non-privileged account context lowers immediate blast radius but still warrants containment if compromise is likely.';
 
     // Generate AI guidance using real LLM
     const prompt = `Analyze this security event and provide a structured guidance.
@@ -201,6 +302,52 @@ const decisionNode = async (state: AgentState): Promise<Partial<AgentState>> => 
         escalationAdvice: 'Standard observation.'
       };
     }
+
+  guidance = {
+    ...guidance,
+    threatContext: `Mapped to ${mitre.technique_id} (${mitre.technique_name}) with NIST triage category ${nistCategory}.`,
+    containmentSteps: guidance.containmentSteps || recommendedSocActions,
+    investigationReport: {
+      alertSummary,
+      riskClassification: {
+        category: nistCategory,
+        justification: `Risk score ${score} with evidence: ${evidence.join('; ') || 'No high-confidence malicious evidence detected.'}`,
+      },
+      mitreMapping: mitre,
+      threatIntelligence: {
+        ipAnalysis: {
+          geolocation: geoLabel,
+          asnIsp: asnLabel,
+          vpnProxyTor: vpnLabel,
+        },
+        reputation: {
+          provider: 'VirusTotal',
+          maliciousDetections: (state.ip_malicious_count || 0) + (state.domain_malicious_count || 0),
+          verdict: state.ip_malicious || state.domain_malicious ? 'malicious' : 'clean',
+        },
+      },
+      behavioralAnalysis: {
+        impossibleTravel: state.impossible_travel,
+        newLoginLocation: state.new_login_location,
+        unusualDevice: state.unusual_device,
+        repeatedLoginFailures: state.repeated_login_failures,
+        offHoursLogin: state.off_hours_login,
+        notes: state.login_history_summary || 'Behavioral baseline unavailable.',
+      },
+      impactAssessment: {
+        likelihoodOfCompromise: severity === 'High' || severity === 'Critical' ? 'Likely' : severity === 'Medium' ? 'Possible' : 'Unlikely',
+        privilegeRisk: state.event.context.privilegedUser ? 'Elevated' : 'Standard',
+        lateralMovementRisk: severity === 'Critical' ? 'High' : severity === 'High' ? 'Medium' : 'Low',
+        summary: impactSummary,
+      },
+      recommendedSocActions,
+      finalVerdict: {
+        severity,
+        confidence,
+        finalTriageConclusion: `${nistCategory}: ${guidance.summary}`,
+      },
+    },
+  };
 
   return { risk_score: score, risk_level: classification, action, evidence_list: evidence, guidance };
 };

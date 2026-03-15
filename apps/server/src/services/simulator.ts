@@ -60,7 +60,8 @@ export class SimulatorService {
             mfaUsed: true,
             privilegedUser: false,
             allowlistMatch: true,
-            sessionTag: 'office_wifi'
+            sessionTag: 'office_wifi',
+            authenticationMethod: 'Password + Push MFA',
           }
         };
 
@@ -76,7 +77,8 @@ export class SimulatorService {
             mfaUsed: false,
             privilegedUser: Math.random() > 0.5,
             allowlistMatch: false,
-            sessionTag: 'unknown_mobile'
+            sessionTag: 'unknown_mobile',
+            authenticationMethod: 'Password only',
           }
         };
 
@@ -91,12 +93,14 @@ export class SimulatorService {
           artifacts: {
             sender: `it-support@${domain}`,
             subject: 'CRITICAL: Account Password Expiry Notice',
-            domain: domain
+            domain: domain,
+            alertDescription: 'Phishing signal from sender/domain mismatch',
           },
           context: {
             mfaUsed: false,
             privilegedUser: false,
-            allowlistMatch: false
+            allowlistMatch: false,
+            authenticationMethod: 'Email Link',
           }
         };
 
@@ -108,12 +112,14 @@ export class SimulatorService {
           sourceIp: '198.51.100.' + Math.floor(Math.random() * 255),
           timestamp,
           artifacts: {
-            url: `http://${DOMAINS[Math.floor(Math.random() * DOMAINS.length)]}/verify?token=${uuidv4().substring(0, 8)}`
+            url: `http://${DOMAINS[Math.floor(Math.random() * DOMAINS.length)]}/verify?token=${uuidv4().substring(0, 8)}`,
+            alertDescription: 'User clicked suspicious external URL',
           },
           context: {
             mfaUsed: false,
             privilegedUser: false,
-            allowlistMatch: false
+            allowlistMatch: false,
+            authenticationMethod: 'Web Session',
           }
         };
 

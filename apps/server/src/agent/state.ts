@@ -17,13 +17,19 @@ export interface AgentState {
 
   // Node 3 (Behavior)
   impossible_travel: boolean;
+  new_login_location: boolean;
+  unusual_device: boolean;
+  repeated_login_failures: boolean;
+  off_hours_login: boolean;
   login_history_summary: string | null;
 
   // Node 4 (Threat Intel)
   geo_location: any | null;
   vpn_detected: boolean | null;
   ip_malicious: boolean | null;
+  ip_malicious_count: number;
   domain_malicious: boolean | null;
+  domain_malicious_count: number;
 
   // Node 5 (Auth logic)
   spf_pass: boolean | null;
@@ -50,11 +56,17 @@ export const InitialState = (): AgentState => ({
   intent_score: null,
   intent_flags: [],
   impossible_travel: false,
+  new_login_location: false,
+  unusual_device: false,
+  repeated_login_failures: false,
+  off_hours_login: false,
   login_history_summary: null,
   geo_location: null,
   vpn_detected: null,
   ip_malicious: null,
+  ip_malicious_count: 0,
   domain_malicious: null,
+  domain_malicious_count: 0,
   spf_pass: null,
   evidence_list: [],
   risk_score: 0,

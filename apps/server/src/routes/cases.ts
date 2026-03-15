@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getAllCases, getCase, saveChatMessage } from '../db';
 import { askBackboard } from '../services/backboard';
+import { lookupThreatIndicator } from '../services/threatIntel';
 import { generateVoiceBrief } from '../services/voice';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -89,21 +90,12 @@ router.post('/:id/chat', async (req, res) => {
 // Manual Threat Intel Lookup
 router.post('/threat-intel/lookup', async (req, res) => {
   try {
-    const { query, type } = req.body;
-    // Mocking manual lookup results (hackathon demo style)
-    const result = {
-      query,
-      type,
-      reputation: Math.random() > 0.3 ? 'Suspicious' : 'Clean',
-      provider: 'Sentry Core Intel (Aggregated VirusTotal/ipinfo)',
-      severity: Math.random() > 0.3 ? 'MALICIOUS' : 'CLEAN',
-      details: {
-        geo: 'Unknown',
-        asn: 'N/A',
-        vpn: Math.random() > 0.5
-      },
-      summary: `Intel search returned ${Math.random() > 0.3 ? 'active malicious infrastructure' : 'no immediate threats'} for this indicator.`
-    };
+    const { query, type } = req.body as { query?: string; type?: 'ip' | 'domain' | 'url' | 'file_hash' };
+    if (!query || !type) {
+      return res.status(400).json({ error: 'Both query and type are required.' });
+    }
+
+    const result = await lookupThreatIndicator(query, type);
     res.json({ result });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
