@@ -49,12 +49,12 @@ export default function ClosedCasesPage() {
     <div className="p-8 max-w-6xl mx-auto w-full space-y-6">
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Closed Cases Documentation</h1>
-          <p className="text-slate-500 mt-1">Official SOC investigation archive with final triage documentation.</p>
+          <h1 className="ui-title text-3xl">Closed Cases Documentation</h1>
+          <p className="ui-subtitle mt-1">Official SOC investigation archive with final triage documentation.</p>
         </div>
         <button
           onClick={() => window.location.reload()}
-          className="flex items-center text-sm font-medium px-4 py-2 bg-white border border-slate-200 rounded-xl shadow-sm hover:bg-slate-50 text-slate-700 transition"
+          className="ui-btn-secondary"
         >
           <RefreshCw className="w-4 h-4 mr-2" />
           Refresh
@@ -67,16 +67,16 @@ export default function ClosedCasesPage() {
           Loading closed investigations...
         </div>
       ) : cases.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center text-slate-500">
+        <div className="ui-card p-10 text-center text-slate-600">
           No closed cases documented yet.
         </div>
       ) : (
         <div className="space-y-4">
           {cases.map((item) => (
-            <article key={item.caseId} className="bg-white border border-slate-200 rounded-2xl p-5">
+            <article key={item.caseId} className="ui-card-elevated p-5">
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-1">
-                  <p className="text-xs uppercase tracking-wider text-slate-400 font-bold">Case {item.caseId.slice(0, 8)}</p>
+                  <p className="text-xs uppercase tracking-wider text-slate-500 font-bold">Case {item.caseId.slice(0, 8)}</p>
                   <h2 className="text-lg font-bold text-slate-900">
                     {formatEventTypeLabel(item.eventType)} | {item.finalClassification || item.classification}
                   </h2>
@@ -91,7 +91,7 @@ export default function ClosedCasesPage() {
                   </span>
                   <Link
                     href={`/case/${item.caseId}/report`}
-                    className="inline-flex items-center px-3 py-2 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800"
+                    className="ui-btn-primary px-3 py-2 text-sm"
                   >
                     <FileText className="w-4 h-4 mr-1.5" />
                     Open Report
@@ -99,7 +99,7 @@ export default function ClosedCasesPage() {
                 </div>
               </div>
 
-              <div className="mt-4 text-sm text-slate-700 bg-slate-50 border border-slate-100 rounded-xl p-3">
+              <div className="mt-4 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3">
                 {item.guidance?.investigationReport?.alertSummary || 'No summary available.'}
               </div>
             </article>

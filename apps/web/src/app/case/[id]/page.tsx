@@ -217,19 +217,19 @@ export default function CaseDetailPage() {
           <Link href="/investigations" className="inline-flex items-center text-xs font-bold text-slate-400 hover:text-blue-600 uppercase tracking-widest">
             <ArrowLeft className="w-3 h-3 mr-1.5" /> Investigation Archive
           </Link>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight mt-3">SOC Tier-2 Investigation</h1>
+          <h1 className="ui-title text-3xl mt-3">SOC Tier-2 Investigation</h1>
           <p className="text-slate-500 text-sm mt-1">
             Case {caseData.caseId.slice(0, 8)} | {formatEventTypeLabel(caseData.eventType)} | {formatCaseAge(caseData.createdAt)}
           </p>
         </div>
         <div className="flex items-center gap-2">
           {isClosed && (
-            <Link href={`/case/${id}/report`} className="flex items-center px-4 py-2.5 rounded-xl font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-500">
+            <Link href={`/case/${id}/report`} className="flex items-center px-4 py-2.5 rounded-xl font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm">
               <CheckCircle2 className="w-4 h-4 mr-2" /> View Report
             </Link>
           )}
           <button onClick={handlePlayBrief} disabled={briefingLoading}
-            className="flex items-center px-4 py-2.5 rounded-xl font-bold text-sm bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-50">
+            className="flex items-center px-4 py-2.5 rounded-xl font-bold text-sm bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-50 shadow-sm">
             {briefingLoading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Headphones className="w-4 h-4 mr-2" />}
             AI Brief
           </button>
@@ -237,7 +237,7 @@ export default function CaseDetailPage() {
       </div>
 
       {/* Verdict Status Badge */}
-      <div className={`flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-semibold ${verdictInfo.bg} ${verdictInfo.color}`}>
+      <div className={`flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-semibold shadow-sm ${verdictInfo.bg} ${verdictInfo.color}`}>
         <span className="flex items-center gap-2"><Shield className="w-4 h-4" /> Verdict Status: {verdictInfo.label}</span>
         {caseData.verdictStatus === 'overridden' && caseData.verdictAction && (
           <span className="text-xs font-normal opacity-80">Override: {formatActionLabel(caseData.verdictAction)} — &quot;{caseData.verdictReason}&quot;</span>
@@ -320,23 +320,23 @@ export default function CaseDetailPage() {
 
       {/* ── VERDICT PANEL ── */}
       {!hasVerdict && (
-        <section className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4">
+        <section className="ui-card-elevated p-5 space-y-4">
           <h2 className="text-sm font-black uppercase tracking-widest text-slate-800 flex items-center gap-2">
             <Shield className="w-4 h-4" /> Analyst Verdict
           </h2>
           <p className="text-sm text-slate-600">Review the AI recommendation and submit your verdict. Your decision trains the agent.</p>
           <div className="flex flex-wrap gap-3">
             <button onClick={() => handleVerdict('confirmed')} disabled={verdictSubmitting}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-50">
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-50 shadow-sm">
               {verdictSubmitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
               Confirm AI Decision
             </button>
             <button onClick={() => setShowOverrideForm(true)} disabled={verdictSubmitting}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm bg-orange-500 text-white hover:bg-orange-400 disabled:opacity-50">
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm bg-orange-500 text-white hover:bg-orange-400 disabled:opacity-50 shadow-sm">
               <RotateCcw className="w-4 h-4" /> Override
             </button>
             <button onClick={() => handleVerdict('escalated')} disabled={verdictSubmitting}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm bg-purple-600 text-white hover:bg-purple-500 disabled:opacity-50">
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm bg-purple-600 text-white hover:bg-purple-500 disabled:opacity-50 shadow-sm">
               <TrendingUp className="w-4 h-4" /> Escalate
             </button>
           </div>
@@ -346,7 +346,7 @@ export default function CaseDetailPage() {
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase">Replacement Action</label>
                 <select value={overrideAction} onChange={e => setOverrideAction(e.target.value)}
-                  className="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm">
+                  className="mt-1 ui-input">
                   <option value="">Select action...</option>
                   <option value="allow">Allow</option>
                   <option value="monitor">Monitor Only</option>
@@ -360,14 +360,14 @@ export default function CaseDetailPage() {
                 <label className="text-xs font-bold text-slate-500 uppercase">Reason for Override</label>
                 <textarea value={overrideReason} onChange={e => setOverrideReason(e.target.value)}
                   rows={2} placeholder="Explain why the AI decision was incorrect..."
-                  className="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm resize-none" />
+                  className="mt-1 ui-input resize-none" />
               </div>
               <div className="flex gap-2">
                 <button onClick={() => handleVerdict('overridden')} disabled={!overrideAction || !overrideReason.trim() || verdictSubmitting}
-                  className="px-4 py-2 rounded-xl font-bold text-sm bg-orange-600 text-white hover:bg-orange-500 disabled:opacity-50">
+                  className="px-4 py-2 rounded-xl font-bold text-sm bg-orange-600 text-white hover:bg-orange-500 disabled:opacity-50 shadow-sm">
                   {verdictSubmitting ? 'Submitting...' : 'Submit Override'}
                 </button>
-                <button onClick={() => setShowOverrideForm(false)} className="px-4 py-2 rounded-xl font-bold text-sm bg-white border border-slate-300 text-slate-600 hover:bg-slate-50">
+                <button onClick={() => setShowOverrideForm(false)} className="px-4 py-2 rounded-xl font-bold text-sm bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 shadow-sm">
                   Cancel
                 </button>
               </div>
@@ -493,7 +493,7 @@ export default function CaseDetailPage() {
       </ExpandableSection>
 
       {/* ── ASK SENTRY AI CHATBOT ── */}
-      <section className="bg-white border border-slate-200 rounded-2xl p-5">
+      <section className="ui-card-elevated p-5">
         <h2 className="font-bold text-slate-900 flex items-center mb-1">
           <MessageSquare className="w-4 h-4 mr-2" /> Ask Sentry AI
         </h2>
@@ -502,7 +502,7 @@ export default function CaseDetailPage() {
         <div className="flex flex-wrap gap-2 mb-3">
           {SUGGESTED_QUESTIONS.map(q => (
             <button key={q} onClick={e => handleSendMessage(e as any, q)}
-              className="text-xs px-3 py-1.5 rounded-full border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 font-medium">
+              className="text-xs px-3 py-1.5 rounded-full border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 font-semibold">
               {q}
             </button>
           ))}
@@ -526,10 +526,10 @@ export default function CaseDetailPage() {
         </div>
         <form onSubmit={handleSendMessage} className="flex gap-2">
           <input value={chatMessage} onChange={e => setChatMessage(e.target.value)}
-            className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="ui-input flex-1"
             placeholder="Ask about evidence, risk, or next steps..." />
           <button type="submit" disabled={!chatMessage.trim() || chatLoading}
-            className="px-3 py-2 rounded-xl bg-blue-600 text-white disabled:opacity-50 hover:bg-blue-500">
+            className="px-3 py-2 rounded-xl bg-blue-600 text-white disabled:opacity-50 hover:bg-blue-500 shadow-sm">
             <Send className="w-4 h-4" />
           </button>
         </form>
@@ -537,14 +537,14 @@ export default function CaseDetailPage() {
 
       {/* Case Closure */}
       {!isClosed && (
-        <section className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+        <section className="ui-card-elevated p-5 space-y-3">
           <h2 className="text-sm font-black uppercase tracking-widest text-slate-800">Close Case</h2>
           <p className="text-sm text-slate-600">Select final SOC classification and confirm analyst review before closure.</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Final Classification</label>
               <select value={finalClassification} onChange={e => setFinalClassification(e.target.value as FinalClassification)}
-                className="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm">
+                className="mt-1 ui-input">
                 <option value="">Select classification</option>
                 <option value="False Positive">False Positive</option>
                 <option value="Benign Activity">Benign Activity</option>
@@ -561,7 +561,7 @@ export default function CaseDetailPage() {
           </div>
           {closureError && <p className="text-sm text-red-600">{closureError}</p>}
           <button onClick={handleCloseCase} disabled={closing || !finalClassification || !analystConfirmed}
-            className="flex items-center px-4 py-2.5 rounded-xl font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-50">
+            className="flex items-center px-4 py-2.5 rounded-xl font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-50 shadow-sm">
             {closing ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
             Close Case
           </button>
@@ -580,9 +580,9 @@ export default function CaseDetailPage() {
 
 function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-4">
-      <p className="text-xs uppercase tracking-wider text-slate-400 font-bold">{label}</p>
-      <p className="text-lg font-bold text-slate-900 mt-1">{value}</p>
+    <div className="ui-card-elevated p-4">
+      <p className="text-xs uppercase tracking-wider text-slate-500 font-bold">{label}</p>
+      <p className="text-lg font-extrabold text-slate-900 mt-1">{value}</p>
     </div>
   );
 }
@@ -592,12 +592,12 @@ function ExpandableSection({ title, children, defaultOpen = false, icon }: {
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-5 py-4 text-left">
+    <div className="ui-card-elevated overflow-hidden">
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-5 py-4 text-left border-b border-slate-100">
         <span className="font-bold text-slate-900 flex items-center gap-2">{icon}{title}</span>
         {open ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
       </button>
-      {open && <div className="px-5 pb-5">{children}</div>}
+      {open && <div className="px-5 pt-4 pb-5">{children}</div>}
     </div>
   );
 }

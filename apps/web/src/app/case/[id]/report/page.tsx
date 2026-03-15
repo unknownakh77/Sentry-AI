@@ -92,7 +92,7 @@ export default function CaseReportPage() {
             <ArrowLeft className="w-3 h-3 mr-1.5" />
             Back to Case
           </Link>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight mt-3 flex items-center">
+          <h1 className="ui-title text-3xl mt-3 flex items-center">
             <FileText className="w-7 h-7 mr-3 text-blue-600" />
             Investigation Report
           </h1>
@@ -100,9 +100,9 @@ export default function CaseReportPage() {
             Case {report.caseId.slice(0, 8)} • Closed {new Date(report.closedAt).toLocaleString()}
           </p>
         </div>
-        <div className="text-right text-sm">
+        <div className="text-right text-sm ui-card px-4 py-3">
           <div className="font-semibold text-slate-900">{report.finalSeverity} Severity</div>
-          <div className="text-slate-500">{report.finalClassification}</div>
+          <div className="text-slate-600">{report.finalClassification}</div>
         </div>
       </div>
 
@@ -148,7 +148,7 @@ export default function CaseReportPage() {
 
 function ReportSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="bg-white border border-slate-200 rounded-2xl p-5">
+    <section className="ui-card-elevated p-5">
       <h2 className="text-sm font-black uppercase tracking-widest text-slate-800 mb-3">{title}</h2>
       <div className="text-sm text-slate-700 space-y-1">{children}</div>
     </section>

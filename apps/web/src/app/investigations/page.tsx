@@ -57,12 +57,12 @@ export default function InvestigationsPage() {
     <div className="p-8 max-w-7xl mx-auto w-full">
       <div className="flex justify-between items-end mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Active Investigations</h1>
-          <p className="text-slate-500 mt-1">Open SOC investigations requiring active analyst workflow</p>
+          <h1 className="ui-title text-3xl">Active Investigations</h1>
+          <p className="ui-subtitle mt-1">Open SOC investigations requiring active analyst workflow</p>
         </div>
         <button 
           onClick={fetchCases} 
-          className="flex items-center text-sm font-medium px-4 py-2 bg-white border border-slate-200 rounded-xl shadow-sm hover:bg-slate-50 text-slate-700 transition"
+          className="ui-btn-secondary"
         >
           <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin text-blue-500' : ''}`} />
           Sync All Records
@@ -70,7 +70,7 @@ export default function InvestigationsPage() {
       </div>
 
       {/* Filters Header */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-6 flex items-center space-x-4">
+      <div className="ui-card p-4 mb-6 flex items-center space-x-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-2.5 w-5 h-5 text-slate-400" />
           <input 
@@ -78,19 +78,19 @@ export default function InvestigationsPage() {
             placeholder="Search by Case ID, Classification, or Type..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-10 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
+            className="ui-input pl-10"
           />
         </div>
         <div className="relative">
           <button
             onClick={() => setShowFilters((previous) => !previous)}
-            className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 flex items-center hover:bg-slate-50"
+            className="ui-btn-secondary text-sm font-medium text-slate-600"
           >
             <Filter className="w-4 h-4 mr-2" />
             Filter
           </button>
           {showFilters && (
-            <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-xl shadow-lg z-20 p-3 space-y-3">
+            <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-xl shadow-xl z-20 p-3 space-y-3">
               <FilterGroup
                 label="Risk level"
                 value={sortOption}
@@ -121,13 +121,13 @@ export default function InvestigationsPage() {
       </div>
 
       {/* Results Table */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="ui-card-elevated overflow-hidden">
         <div className="overflow-x-auto">
           {sortedFilteredCases.length === 0 && !loading ? (
-            <div className="p-12 text-center text-slate-500 font-medium">No active investigations found matching your criteria.</div>
+            <div className="p-12 text-center text-slate-600 font-medium">No active investigations found matching your criteria.</div>
           ) : (
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+            <table className="ui-table w-full text-left text-sm">
+              <thead>
                 <tr>
                   <th className="px-8 py-4">Investigation & Subject</th>
                   <th className="px-6 py-4">Triage Time</th>
@@ -139,10 +139,10 @@ export default function InvestigationsPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {sortedFilteredCases.map((c: any) => (
-                  <tr key={c.caseId} className="hover:bg-blue-50/30 transition-colors group">
+                  <tr key={c.caseId} className="transition-colors group">
                     <td className="px-8 py-5">
                       <div className="flex items-center space-x-4">
-                        <div className="p-2.5 bg-slate-100 rounded-xl group-hover:bg-white transition-colors">
+                        <div className="p-2.5 bg-slate-100 rounded-xl group-hover:bg-white transition-colors border border-transparent group-hover:border-blue-100">
                           <EventIcon type={c.eventType} />
                         </div>
                         <div>
@@ -163,7 +163,7 @@ export default function InvestigationsPage() {
                     </td>
                     <td className="px-6 py-5">
                       <div className="flex flex-col space-y-1">
-                        <span className="inline-flex items-center text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded uppercase tracking-wider w-fit">
+                        <span className="inline-flex items-center text-[10px] font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded uppercase tracking-wider w-fit border border-blue-100">
                           {formatActionLabel(c.action)}
                         </span>
                         <div className="flex items-center text-[10px] text-slate-400">
@@ -178,7 +178,7 @@ export default function InvestigationsPage() {
                     <td className="px-8 py-5 text-right">
                       <Link
                         href={`/case/${c.caseId}`}
-                        className="inline-flex items-center justify-center p-2 rounded-xl bg-slate-100 text-slate-400 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                        className="inline-flex items-center justify-center p-2 rounded-xl bg-slate-100 text-slate-500 hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-slate-200"
                       >
                         <ChevronRight className="w-5 h-5" />
                       </Link>
@@ -198,7 +198,7 @@ const VERDICT_STYLES: Record<string, { label: string; cls: string }> = {
   pending_review: { label: 'Pending Review', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
   confirmed:      { label: 'Confirmed',      cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   overridden:     { label: 'Overridden',     cls: 'bg-orange-50 text-orange-700 border-orange-200' },
-  escalated:      { label: 'Escalated',      cls: 'bg-purple-50 text-purple-700 border-purple-200' },
+  escalated:      { label: 'Escalated',      cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
 };
 
 function VerdictBadge({ status }: { status: string }) {
@@ -223,14 +223,14 @@ function FilterGroup({
 }) {
   return (
     <div>
-      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">{label}</p>
+      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">{label}</p>
       <div className="space-y-1">
         {options.map((option) => (
           <button
             key={option.value}
             onClick={() => onChange(option.value)}
-            className={`w-full text-left px-3 py-2 rounded-lg text-sm ${
-              value === option.value ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-slate-50 text-slate-600'
+            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition ${
+              value === option.value ? 'bg-blue-50 text-blue-700 font-semibold border border-blue-100' : 'hover:bg-slate-50 text-slate-600 border border-transparent'
             }`}
           >
             {option.label}

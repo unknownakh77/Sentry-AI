@@ -78,15 +78,15 @@ export default function DashboardPage() {
     <div className="p-8 max-w-7xl mx-auto w-full">
       <div className="flex justify-between items-end mb-10">
         <div>
-          <div className="flex items-center space-x-2 text-blue-600 font-bold text-xs uppercase tracking-[0.3em] mb-2">
-            <div className="w-8 h-1 bg-blue-600 rounded-full" />
+          <div className="flex items-center space-x-2 text-blue-700 font-bold text-xs uppercase tracking-[0.3em] mb-2">
+            <div className="w-8 h-1 bg-blue-700 rounded-full" />
             <span>Mission Control</span>
           </div>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tight">SOC Dashboard</h1>
-          <p className="text-slate-500 mt-2 font-medium">Real-time fraud surveillance and autonomous triage hub</p>
+          <h1 className="ui-title text-4xl">SOC Dashboard</h1>
+          <p className="ui-subtitle mt-2">Real-time fraud surveillance and autonomous triage hub</p>
         </div>
         <div className="flex items-center space-x-3">
-           <Link href="/investigations" className="text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors uppercase tracking-widest mr-4">
+           <Link href="/investigations" className="text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors uppercase tracking-widest mr-4">
              Archive &rarr;
            </Link>
           <button 
@@ -94,7 +94,7 @@ export default function DashboardPage() {
               void fetchCases();
               void fetchRiskTrend();
             }} 
-            className="flex items-center text-sm font-bold px-5 py-2.5 bg-white border border-slate-200 rounded-xl shadow-sm hover:bg-slate-50 text-slate-700 transition-all hover:border-slate-300"
+            className="ui-btn-secondary px-5"
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin text-blue-500' : ''}`} />
             Sync Hub
@@ -107,17 +107,17 @@ export default function DashboardPage() {
       <div className="grid grid-cols-12 gap-8">
         {/* Main Table Area */}
         <div className="col-span-12 lg:col-span-8">
-          <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="px-8 py-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+          <div className="ui-card-elevated overflow-hidden">
+            <div className="px-8 py-5 border-b border-slate-100 bg-slate-50/70 flex justify-between items-center">
               <h2 className="font-black text-slate-900 uppercase tracking-widest text-xs">Priority Investigations</h2>
-              <span className="text-[10px] font-bold text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded uppercase">TOP 5 ACTIVE</span>
+              <span className="text-[10px] font-bold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded uppercase">TOP 5 ACTIVE</span>
             </div>
             <div className="overflow-x-auto">
               {cases.length === 0 && !loading ? (
-                <div className="p-16 text-center text-slate-400 font-medium">No active investigations. Run a scenario to begin triage.</div>
+                <div className="p-16 text-center text-slate-500 font-medium">No active investigations. Run a scenario to begin triage.</div>
               ) : (
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-white border-b border-slate-100 text-slate-400 font-black uppercase tracking-[0.2em] text-[10px]">
+                <table className="ui-table w-full text-left text-sm">
+                  <thead>
                     <tr>
                       <th className="px-8 py-4">Security Event</th>
                       <th className="px-8 py-4">Triage Time</th>
@@ -125,12 +125,12 @@ export default function DashboardPage() {
                       <th className="px-8 py-4 text-right">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-50">
+                  <tbody className="divide-y divide-slate-100">
                     {cases.map((c) => (
                       <tr 
                         key={c.caseId} 
                         onClick={() => window.location.href = `/case/${c.caseId}`}
-                        className="hover:bg-blue-50/50 transition-colors cursor-pointer group"
+                        className="transition-colors cursor-pointer group"
                       >
                         <td className="px-8 py-5">
                           <div className="flex items-center space-x-4">
@@ -139,22 +139,22 @@ export default function DashboardPage() {
                             </div>
                             <div>
                                <div className="font-black text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors capitalize">{formatEventTypeLabel(c.eventType)}</div>
-                               <div className="text-[10px] font-mono font-bold text-slate-400 uppercase">ID: {c.caseId.slice(0, 8)}</div>
+                               <div className="text-[10px] font-mono font-bold text-slate-500 uppercase">ID: {c.caseId.slice(0, 8)}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-8 py-5 text-slate-500 font-semibold text-xs whitespace-nowrap">
+                        <td className="px-8 py-5 text-slate-600 font-semibold text-xs whitespace-nowrap">
                           {formatCaseAge(c.createdAt)}
                         </td>
                         <td className="px-8 py-5 text-center">
                           <div className="flex flex-col items-center">
                             <RiskBadge classification={c.classification} />
-                            <span className="text-[9px] font-mono font-black text-slate-300 mt-1">SCORE {c.riskScore}</span>
+                            <span className="text-[9px] font-mono font-black text-slate-400 mt-1">SCORE {c.riskScore}</span>
                           </div>
                         </td>
                         <td className="px-8 py-5 text-right">
                           <div className="flex items-center justify-end space-x-3">
-                            <span className="inline-flex items-center text-[10px] font-black text-slate-600 bg-slate-100 px-2 py-0.5 rounded-lg uppercase tracking-wider">
+                            <span className="inline-flex items-center text-[10px] font-black text-slate-700 bg-slate-100 px-2 py-0.5 rounded-lg uppercase tracking-wider border border-slate-200">
                               {formatActionLabel(c.action)}
                             </span>
                             <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 transition-colors" />
@@ -171,14 +171,14 @@ export default function DashboardPage() {
 
         {/* Demo Controller Sidebar */}
         <div className="col-span-12 lg:col-span-4">
-          <div className="bg-slate-900 rounded-3xl p-8 shadow-2xl relative overflow-hidden border border-slate-800">
+          <div className="bg-[#0b162a] rounded-3xl p-8 shadow-2xl relative overflow-hidden border border-slate-800">
             <div className="absolute top-0 right-0 p-4 opacity-10">
               <Play className="w-20 h-20 text-blue-500" />
             </div>
-            <h2 className="font-black text-blue-400 uppercase tracking-[0.2em] text-xs mb-2">
+            <h2 className="font-black text-cyan-300 uppercase tracking-[0.2em] text-xs mb-2">
               Scenario Simulator
             </h2>
-            <p className="text-xs text-slate-500 mb-8 font-medium">Inject synthetic high-fidelity audit events</p>
+            <p className="text-xs text-slate-400 mb-8 font-medium">Inject synthetic high-fidelity audit events</p>
             
             <div className="space-y-4 relative z-10">
               <ScenarioButton 
@@ -253,11 +253,11 @@ function SecurityRiskTrendCard({ trend, loading }: { trend: RiskTrendPoint[]; lo
     : '';
 
   return (
-    <section className="mb-8 bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
+    <section className="mb-8 ui-card-elevated p-6">
       <div className="flex items-end justify-between mb-4">
         <div>
           <h2 className="font-black text-slate-900 tracking-tight text-lg">Security Risk Trend</h2>
-          <p className="text-xs text-slate-500 mt-1">Hourly investigation volume by severity over the past 24 hours (open + closed)</p>
+          <p className="text-xs text-slate-600 mt-1">Hourly investigation volume by severity over the past 24 hours (open + closed)</p>
         </div>
         <div className="flex items-center gap-3 text-[11px] font-semibold">
           <span className="inline-flex items-center text-slate-600"><i className="w-2.5 h-2.5 rounded-full bg-[#ef4444] mr-1.5" />High</span>
@@ -418,7 +418,7 @@ function SecurityRiskTrendCard({ trend, loading }: { trend: RiskTrendPoint[]; lo
           </svg>
 
           {hoverIndex !== null && points[hoverIndex] && (
-            <div className="absolute right-3 top-3 w-72 bg-slate-900 text-slate-100 rounded-2xl p-3 text-xs shadow-2xl border border-slate-700">
+            <div className="absolute right-3 top-3 w-72 bg-[#0a1324] text-slate-100 rounded-2xl p-3 text-xs shadow-2xl border border-slate-700">
               <p className="font-bold text-[11px]">{formatTrendTooltip(points[hoverIndex].timestamp)}</p>
               <p className="mt-1 text-slate-300">Investigations: {points[hoverIndex].totalCases}</p>
               <p className="text-slate-300">
@@ -429,7 +429,7 @@ function SecurityRiskTrendCard({ trend, loading }: { trend: RiskTrendPoint[]; lo
 
           {!hasAnyData && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="text-[11px] font-semibold text-slate-400 bg-white/80 px-3 py-1.5 rounded-lg border border-slate-200">
+              <div className="text-[11px] font-semibold text-slate-500 bg-white/85 px-3 py-1.5 rounded-lg border border-slate-200">
                 No investigations in most of the past 24 hours.
               </div>
             </div>
@@ -491,16 +491,16 @@ function ScenarioButton({
   variant?: 'default' | 'danger' | 'warning';
 }) {
   const baseColors = variant === 'danger' 
-    ? 'bg-red-500/10 border-red-500/20 hover:bg-red-500/20 hover:border-red-500/40 text-red-400' 
+    ? 'bg-red-500/10 border-red-500/30 hover:bg-red-500/20 hover:border-red-500/45 text-red-300' 
     : variant === 'warning'
-      ? 'bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/20 hover:border-amber-500/40 text-amber-400'
-      : 'bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20 hover:border-blue-500/40 text-blue-400';
+      ? 'bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20 hover:border-amber-500/45 text-amber-300'
+      : 'bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/20 hover:border-blue-500/45 text-blue-300';
 
   return (
     <button 
       onClick={onClick} 
       disabled={loading}
-      className={`w-full text-left p-4 rounded-2xl border ${baseColors} transition-all duration-300 group flex justify-between items-center shadow-lg shadow-black/10`}
+      className={`w-full text-left p-4 rounded-xl border ${baseColors} transition-all duration-300 group flex justify-between items-center shadow-lg shadow-black/15`}
     >
       <div>
         <div className="font-black text-xs uppercase tracking-widest">{label}</div>

@@ -5,15 +5,15 @@ import { FileCheck, Fingerprint, Link as LinkIcon, Mail, ShieldAlert } from 'luc
 export function EventIcon({ type }: { type: CaseRecord['eventType'] }) {
   switch (type) {
     case 'login':
-      return <Fingerprint className="w-5 h-5 text-blue-500" />;
+      return <Fingerprint className="w-5 h-5 text-blue-600" />;
     case 'phishing_email':
-      return <Mail className="w-5 h-5 text-purple-500" />;
+      return <Mail className="w-5 h-5 text-fuchsia-600" />;
     case 'url_click':
-      return <LinkIcon className="w-5 h-5 text-amber-500" />;
+      return <LinkIcon className="w-5 h-5 text-amber-600" />;
     case 'file_hash':
-      return <FileCheck className="w-5 h-5 text-slate-500" />;
+      return <FileCheck className="w-5 h-5 text-slate-600" />;
     default:
-      return <ShieldAlert className="w-5 h-5 text-slate-500" />;
+      return <ShieldAlert className="w-5 h-5 text-slate-600" />;
   }
 }
 
@@ -37,7 +37,7 @@ export function RiskBadge({
   };
 
   return (
-    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${styles[classification]}`}>
+    <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${styles[classification]}`}>
       {classification}
     </span>
   );
