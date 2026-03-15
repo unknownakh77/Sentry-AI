@@ -133,11 +133,12 @@ export default function InvestigationsPage() {
                   <th className="px-6 py-4">Triage Time</th>
                   <th className="px-6 py-4">Risk Context</th>
                   <th className="px-6 py-4">Response Execution</th>
+                  <th className="px-6 py-4">Verdict</th>
                   <th className="px-8 py-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {sortedFilteredCases.map((c) => (
+                {sortedFilteredCases.map((c: any) => (
                   <tr key={c.caseId} className="hover:bg-blue-50/30 transition-colors group">
                     <td className="px-8 py-5">
                       <div className="flex items-center space-x-4">
@@ -171,9 +172,12 @@ export default function InvestigationsPage() {
                         </div>
                       </div>
                     </td>
+                    <td className="px-6 py-5">
+                      <VerdictBadge status={c.verdictStatus || 'pending_review'} />
+                    </td>
                     <td className="px-8 py-5 text-right">
-                      <Link 
-                        href={`/case/${c.caseId}`} 
+                      <Link
+                        href={`/case/${c.caseId}`}
                         className="inline-flex items-center justify-center p-2 rounded-xl bg-slate-100 text-slate-400 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
                       >
                         <ChevronRight className="w-5 h-5" />
@@ -187,6 +191,22 @@ export default function InvestigationsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+const VERDICT_STYLES: Record<string, { label: string; cls: string }> = {
+  pending_review: { label: 'Pending Review', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+  confirmed:      { label: 'Confirmed',      cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  overridden:     { label: 'Overridden',     cls: 'bg-orange-50 text-orange-700 border-orange-200' },
+  escalated:      { label: 'Escalated',      cls: 'bg-purple-50 text-purple-700 border-purple-200' },
+};
+
+function VerdictBadge({ status }: { status: string }) {
+  const v = VERDICT_STYLES[status] || VERDICT_STYLES.pending_review;
+  return (
+    <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${v.cls}`}>
+      {v.label}
+    </span>
   );
 }
 

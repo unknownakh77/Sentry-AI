@@ -4,3 +4,10 @@ node_modules
 coverage
 dist
 *.tsbuildinfo
+
+
+# environment variables
+.env
+.env.local
+# Environment variables
+.env*

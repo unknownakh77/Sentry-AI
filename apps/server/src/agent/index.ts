@@ -2,7 +2,7 @@ import { StateGraph, END, START } from '@langchain/langgraph';
 import { AgentState, InitialState } from './state';
 import { getIpInfo, getVpnApi, getVirusTotalIp, getVirusTotalDomain } from '../services/enrichment';
 import { getRecentLogins, saveCase, saveToolCall } from '../db';
-import { askBackboard } from '../services/backboard';
+import { planInvestigation, generateCaseExplanation } from '../services/ai';
 import { v4 as uuidv4 } from 'uuid';
 import { NormalizedEvent } from '@sentry/shared';
 
@@ -25,6 +25,8 @@ function recordTool(state: AgentState, tool: string, summary: string, rawRef: an
 const graphStateChannels: any = {
   event: null,
   plan: null,
+  plannerOutput: null,
+  aiExplanation: null,
   intent_score: null,
   intent_flags: null,
   impossible_travel: null,
@@ -54,8 +56,9 @@ const graphStateChannels: any = {
 // Node 1: Planner
 const plannerNode = async (state: AgentState): Promise<Partial<AgentState>> => {
   const type = state.event.eventType;
+
+  // Deterministic tool list for the downstream pipeline
   let plan = { tools: [] as string[], reasoning: '' };
-  
   if (type === 'login') {
     plan = { tools: ['ip_intel', 'geo_intel', 'vpn_intel', 'login_history'], reasoning: 'Login attempt detected. Need to verify IP reputation, location identity, and recent history to rule out account takeover.' };
   } else if (type === 'phishing_email') {
@@ -63,9 +66,12 @@ const plannerNode = async (state: AgentState): Promise<Partial<AgentState>> => {
   } else if (type === 'url_click') {
     plan = { tools: ['domain_intel'], reasoning: 'URL clicked. Checking domain and URL reputation.' };
   }
-  
-  recordTool(state, 'investigation_planner', `Determined tool plan: ${plan.tools.join(', ')}`);
-  return { plan, tool_calls: state.tool_calls }; // Note: state mutation used for simplicity above, but returning here.
+
+  // AI-generated structured planner output (visible to analyst)
+  const plannerOutput = await planInvestigation(state.event);
+
+  recordTool(state, 'investigation_planner', `AI planner determined ${plannerOutput.checks.length} checks: ${plannerOutput.checks.map(c => c.tool).join(', ')}`);
+  return { plan, plannerOutput, tool_calls: state.tool_calls };
 };
 
 // Node 3: Behavior
@@ -349,7 +355,17 @@ const decisionNode = async (state: AgentState): Promise<Partial<AgentState>> => 
     },
   };
 
-  return { risk_score: score, risk_level: classification, action, evidence_list: evidence, guidance };
+  // AI case explanation (grounded analyst guidance)
+  const aiExplanation = await generateCaseExplanation({
+    eventType: state.event.eventType,
+    riskScore: score,
+    classification,
+    action,
+    evidenceList: evidence,
+    plannerOutput: state.plannerOutput || undefined,
+  });
+
+  return { risk_score: score, risk_level: classification, action, evidence_list: evidence, guidance, aiExplanation };
 };
 
 // Node 9: Persist
@@ -366,6 +382,8 @@ const persistNode = async (state: AgentState): Promise<Partial<AgentState>> => {
     actionStatus: 'executed',
     evidenceList: state.evidence_list,
     guidance: state.guidance,
+    plannerOutput: state.plannerOutput || undefined,
+    aiExplanation: state.aiExplanation || undefined,
     createdAt: new Date().toISOString()
   });
 

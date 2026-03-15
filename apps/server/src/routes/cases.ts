@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { closeCase, getActiveCases, getAllCases, getCase, getClosedCases, saveChatMessage } from '../db';
-import { askBackboard } from '../services/backboard';
+import { closeCase, getActiveCases, getAllCases, getCase, getClosedCases, getRecentOverrides, getVerdictStats, saveChatMessage, submitVerdict, updateAdaptiveRule } from '../db';
+import { answerCaseQuestion, reflectOnOverride } from '../services/ai';
 import { lookupThreatIndicator } from '../services/threatIntel';
 import { generateVoiceBrief } from '../services/voice';
 import { v4 as uuidv4 } from 'uuid';
@@ -27,48 +27,85 @@ router.get('/recent', (_req, res) => {
   }
 });
 
-// Chatbot: Ask Sentry AI
+// Chatbot: Ask Sentry AI (case-aware)
 router.post('/:id/chat', async (req, res) => {
   try {
     const { message } = req.body;
     const caseId = req.params.id;
     const caseData = getCase(caseId);
-    
     if (!caseData) return res.status(404).json({ error: 'Case not found' });
 
-    // Save user message
-    saveChatMessage({
-      id: uuidv4(),
-      caseId,
-      role: 'user',
-      content: message,
-      createdAt: new Date().toISOString()
-    });
+    saveChatMessage({ id: uuidv4(), caseId, role: 'user', content: message, createdAt: new Date().toISOString() });
 
-    // Improved AI response logic with real LLM
-    const prompt = `The analyst is asking about this security case.
-    Case ID: ${caseId}
-    Event Type: ${caseData.eventType}
-    Risk: ${caseData.classification}
-    Evidence: ${caseData.evidenceList?.join(', ')}
-    Guidance: ${caseData.guidance?.summary}
-    
-    Analyst Question: "${message}"
-    
-    Provide a professional, concise, and helpful response.`;
+    const chatHistory = (caseData.chatMessages || []) as Array<{ role: string; content: string }>;
+    const aiResponse = await answerCaseQuestion(caseData, message, chatHistory);
 
-    const aiResponse = await askBackboard(prompt, "You are Sentry AI. Be helpful and insightful.");
-
-    const assistantMsg = {
-      id: uuidv4(),
-      caseId,
-      role: 'assistant',
-      content: aiResponse,
-      createdAt: new Date().toISOString()
-    };
+    const assistantMsg = { id: uuidv4(), caseId, role: 'assistant', content: aiResponse, createdAt: new Date().toISOString() };
     saveChatMessage(assistantMsg);
 
     res.json({ message: assistantMsg });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Verdict: Confirm / Override / Escalate
+router.post('/:id/verdict', async (req, res) => {
+  try {
+    const caseId = req.params.id;
+    const { verdictStatus, verdictAction, verdictReason } = req.body as {
+      verdictStatus: 'confirmed' | 'overridden' | 'escalated';
+      verdictAction?: string;
+      verdictReason?: string;
+    };
+
+    if (!['confirmed', 'overridden', 'escalated'].includes(verdictStatus)) {
+      return res.status(400).json({ error: 'verdictStatus must be confirmed, overridden, or escalated' });
+    }
+
+    const caseData = getCase(caseId);
+    if (!caseData) return res.status(404).json({ error: 'Case not found' });
+
+    let verdictReflection = null;
+
+    if (verdictStatus === 'overridden' && verdictAction && verdictReason) {
+      const recentOverrides = getRecentOverrides(10).map((c: any) => ({
+        eventType: c.eventType,
+        originalAction: c.action,
+        overrideAction: c.verdictAction || '',
+        reason: c.verdictReason || '',
+        riskScore: c.riskScore,
+      }));
+      verdictReflection = await reflectOnOverride(caseData, verdictAction, verdictReason, recentOverrides);
+    }
+
+    submitVerdict(caseId, { verdictStatus, verdictAction, verdictReason, verdictReflection });
+
+    const updated = getCase(caseId);
+    res.json({ success: true, caseData: updated });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Accept or reject an adaptive rule
+router.post('/:id/adaptive-rule', (req, res) => {
+  try {
+    const { accepted, rule } = req.body as { accepted: boolean; rule?: any };
+    const caseId = req.params.id;
+    const caseData = getCase(caseId);
+    if (!caseData) return res.status(404).json({ error: 'Case not found' });
+    updateAdaptiveRule(caseId, rule || caseData.adaptiveRule, accepted);
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Verdict stats for dashboard (agent accuracy)
+router.get('/verdict-stats', (_req, res) => {
+  try {
+    res.json(getVerdictStats());
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

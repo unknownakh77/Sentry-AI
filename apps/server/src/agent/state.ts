@@ -1,15 +1,22 @@
 import { NormalizedEvent, ToolCall } from '@sentry/shared';
+import { PlannerOutput, CaseExplanation } from '../services/ai';
 
 // Define the Graph State
 export interface AgentState {
   // Input
   event: NormalizedEvent;
-  
+
   // Output from Node 1 (Planner)
   plan: {
     tools: string[];
     reasoning: string;
   } | null;
+
+  // AI Planner structured output
+  plannerOutput: PlannerOutput | null;
+
+  // AI case explanation
+  aiExplanation: CaseExplanation | null;
 
   // Node 2 (Intent)
   intent_score: number | null;
@@ -53,6 +60,8 @@ export interface AgentState {
 export const InitialState = (): AgentState => ({
   event: null as any, // Set dynamically
   plan: null,
+  plannerOutput: null,
+  aiExplanation: null,
   intent_score: null,
   intent_flags: [],
   impossible_travel: false,
