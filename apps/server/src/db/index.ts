@@ -15,9 +15,21 @@ db.exec(`
     action TEXT NOT NULL,
     actionStatus TEXT NOT NULL,
     evidenceList TEXT, -- JSON array
+    guidance TEXT, -- JSON object
     createdAt TEXT NOT NULL
   );
 
+  --- Migration for existing tables ---
+  PRAGMA foreign_keys=OFF;
+`);
+
+try {
+  db.exec("ALTER TABLE cases ADD COLUMN guidance TEXT;");
+} catch (e) {
+  // Column already exists, ignore
+}
+
+db.exec(`
   CREATE TABLE IF NOT EXISTS tool_calls (
     id TEXT PRIMARY KEY,
     caseId TEXT NOT NULL,
@@ -56,26 +68,32 @@ db.exec(`
     description TEXT
   );
 
-  CREATE TABLE IF NOT EXISTS scenario_context (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    scenarioName TEXT NOT NULL,
-    key TEXT NOT NULL,
-    value TEXT NOT NULL
+  CREATE TABLE IF NOT EXISTS sessions (
+    id TEXT PRIMARY KEY,
+    userEmail TEXT NOT NULL,
+    otp TEXT,
+    isMfaTrusted INTEGER DEFAULT 0,
+    expiresAt TEXT NOT NULL,
+    createdAt TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS chat_messages (
+    id TEXT PRIMARY KEY,
+    caseId TEXT NOT NULL,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY(caseId) REFERENCES cases(caseId)
+  );
+
+  CREATE TABLE IF NOT EXISTS attack_chains (
+    chainId TEXT PRIMARY KEY,
+    subject TEXT NOT NULL, -- user or IP
+    links TEXT NOT NULL, -- JSON array of AttackChainLink
+    correlationReason TEXT NOT NULL,
+    createdAt TEXT NOT NULL
   );
 `);
-
-// --- Seed Initial Data for Demo ---
-const seedAllowlists = db.prepare('INSERT OR IGNORE INTO allowlists (id, type, value, description) VALUES (?, ?, ?, ?)');
-seedAllowlists.run(1, 'ip', '192.168.1.50', 'Trusted Office Network');
-seedAllowlists.run(2, 'domain', 'c0rp-support.com', 'Fake Domain for Phishing Demo');
-
-const seedLogins = db.prepare('INSERT OR IGNORE INTO login_history (id, user, sourceIp, geo, timestamp, result) VALUES (?, ?, ?, ?, ?, ?)');
-const yesterday = new Date(Date.now() - 86400000).toISOString();
-const hourAgo = new Date(Date.now() - 3600000).toISOString();
-const CanadaGeo = 'Toronto, Ontario, CA';
-
-seedLogins.run(1, 'bob.banking@corp.com', '198.51.100.10', CanadaGeo, yesterday, 'success');
-seedLogins.run(2, 'bob.banking@corp.com', '198.51.100.10', CanadaGeo, hourAgo, 'success');
 
 // --- Data Access Functions ---
 
@@ -101,11 +119,23 @@ export function writeAuditLog(log: { id: string, caseId: string, action: string,
   stmt.run(log);
 }
 
-export function saveCase(c: { caseId: string, eventId: string, eventType: string, riskScore: number, classification: string, action: string, actionStatus: string, evidenceList?: string[], createdAt: string }) {
-  const stmt = db.prepare('INSERT INTO cases (caseId, eventId, eventType, riskScore, classification, action, actionStatus, evidenceList, createdAt) VALUES (@caseId, @eventId, @eventType, @riskScore, @classification, @action, @actionStatus, @evidenceList, @createdAt)');
+export function saveCase(c: { 
+  caseId: string, 
+  eventId: string, 
+  eventType: string, 
+  riskScore: number, 
+  classification: string, 
+  action: string, 
+  actionStatus: string, 
+  evidenceList?: string[], 
+  guidance?: any,
+  createdAt: string 
+}) {
+  const stmt = db.prepare('INSERT INTO cases (caseId, eventId, eventType, riskScore, classification, action, actionStatus, evidenceList, guidance, createdAt) VALUES (@caseId, @eventId, @eventType, @riskScore, @classification, @action, @actionStatus, @evidenceList, @guidance, @createdAt)');
   stmt.run({
     ...c,
-    evidenceList: c.evidenceList ? JSON.stringify(c.evidenceList) : null
+    evidenceList: c.evidenceList ? JSON.stringify(c.evidenceList) : null,
+    guidance: c.guidance ? JSON.stringify(c.guidance) : null
   });
 }
 
@@ -115,12 +145,62 @@ export function saveToolCall(t: { id: string, caseId: string, tool: string, stat
 }
 
 export function getCase(caseId: string) {
-  const caseData = db.prepare('SELECT * FROM cases WHERE caseId = ?').get(caseId);
+  const caseData = db.prepare('SELECT * FROM cases WHERE caseId = ?').get(caseId) as any;
   if (!caseData) return null;
   const toolCalls = db.prepare('SELECT * FROM tool_calls WHERE caseId = ? ORDER BY createdAt ASC').all(caseId);
   const auditLogs = db.prepare('SELECT * FROM audit_logs WHERE caseId = ? ORDER BY createdAt ASC').all(caseId);
-  return { ...caseData, toolCalls, auditLogs };
+  const chatMessages = db.prepare('SELECT * FROM chat_messages WHERE caseId = ? ORDER BY createdAt ASC').all(caseId);
+  
+  return { 
+    ...caseData, 
+    evidenceList: caseData.evidenceList ? JSON.parse(caseData.evidenceList) : [],
+    guidance: caseData.guidance ? JSON.parse(caseData.guidance) : null,
+    toolCalls, 
+    auditLogs,
+    chatMessages
+  };
 }
+
+export function saveChatMessage(msg: { id: string, caseId: string, role: string, content: string, createdAt: string }) {
+  const stmt = db.prepare('INSERT INTO chat_messages (id, caseId, role, content, createdAt) VALUES (@id, @caseId, @role, @content, @createdAt)');
+  stmt.run(msg);
+}
+
+export function saveAttackChain(chain: { chainId: string, subject: string, links: any[], correlationReason: string, createdAt: string }) {
+  const stmt = db.prepare('INSERT OR REPLACE INTO attack_chains (chainId, subject, links, correlationReason, createdAt) VALUES (@chainId, @subject, @links, @correlationReason, @createdAt)');
+  stmt.run({
+    ...chain,
+    links: JSON.stringify(chain.links)
+  });
+}
+
+export function getAttackChain(subject: string) {
+  const stmt = db.prepare('SELECT * FROM attack_chains WHERE subject = ?');
+  const result = stmt.get(subject) as any;
+  if (!result) return null;
+  return {
+    ...result,
+    links: JSON.parse(result.links)
+  };
+}
+
+export function createSession(session: { id: string, userEmail: string, otp: string, expiresAt: string, createdAt: string }) {
+  const stmt = db.prepare('INSERT INTO sessions (id, userEmail, otp, expiresAt, createdAt) VALUES (@id, @userEmail, @otp, @expiresAt, @createdAt)');
+  stmt.run(session);
+}
+
+export function getSession(id: string) {
+  return db.prepare('SELECT * FROM sessions WHERE id = ?').get(id) as any;
+}
+
+export function verifySession(id: string) {
+  db.prepare('UPDATE sessions SET isMfaTrusted = 1 WHERE id = ?').run(id);
+}
+
+export function getCasesByUser(userEmail: string) {
+  return db.prepare('SELECT * FROM cases WHERE eventId IN (SELECT eventId FROM (SELECT eventId, user FROM cases) WHERE user = ?) ORDER BY createdAt DESC').all(userEmail);
+}
+
 
 export function getAllCases() {
   return db.prepare('SELECT * FROM cases ORDER BY createdAt DESC').all();

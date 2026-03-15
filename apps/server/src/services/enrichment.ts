@@ -50,7 +50,7 @@ const FIXTURES = {
   }
 };
 
-const USE_FIXTURES = process.env.DEMO_MODE !== 'false';
+const USE_FIXTURES = false; // Always use real APIs for the final integrated version
 
 // --- Services ---
 

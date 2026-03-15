@@ -14,10 +14,10 @@ export default function DashboardPage() {
   const fetchCases = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:3001/api/cases');
+      const res = await fetch('http://localhost:3001/api/cases/recent');
       const data = await res.json();
       if (data.cases) {
-        setCases(data.cases);
+        setCases(data.cases.slice(0, 5));
       }
     } catch (err) {
       console.error('Failed to fetch cases', err);
@@ -28,6 +28,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchCases();
+    // Auto-sync every 30 seconds for autonomous demo
+    const interval = setInterval(fetchCases, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const simulateScenario = async (scenario: string) => {
@@ -71,73 +74,95 @@ export default function DashboardPage() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto w-full">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex justify-between items-end mb-10">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Security Operations Center</h1>
-          <p className="text-sm text-slate-500 mt-1">Real-time fraud detection and event triage</p>
+          <div className="flex items-center space-x-2 text-blue-600 font-bold text-xs uppercase tracking-[0.3em] mb-2">
+            <div className="w-8 h-1 bg-blue-600 rounded-full" />
+            <span>Mission Control</span>
+          </div>
+          <h1 className="text-4xl font-black text-slate-900 tracking-tight">SOC Dashboard</h1>
+          <p className="text-slate-500 mt-2 font-medium">Real-time fraud surveillance and autonomous triage hub</p>
         </div>
-        <button 
-          onClick={fetchCases} 
-          className="flex items-center text-sm font-medium px-4 py-2 bg-white border border-slate-200 rounded-md shadow-sm hover:bg-slate-50 text-slate-700 transition"
-        >
-          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin text-blue-500' : ''}`} />
-          Refresh
-        </button>
+        <div className="flex items-center space-x-3">
+           <Link href="/investigations" className="text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors uppercase tracking-widest mr-4">
+             Archive &rarr;
+           </Link>
+          <button 
+            onClick={fetchCases} 
+            className="flex items-center text-sm font-bold px-5 py-2.5 bg-white border border-slate-200 rounded-xl shadow-sm hover:bg-slate-50 text-slate-700 transition-all hover:border-slate-300"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin text-blue-500' : ''}`} />
+            Sync Hub
+          </button>
+        </div>
       </div>
 
       {/* Metrics Cards */}
-      <div className="grid grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-4 gap-6 mb-10">
         {metrics.map((m, i) => (
-          <div key={i} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col">
-            <span className="text-sm font-medium text-slate-500">{m.label}</span>
-            <span className={`text-3xl font-bold mt-2 ${m.color}`}>{m.value}</span>
+          <div key={i} className="bg-white rounded-3xl shadow-sm border border-slate-200 p-8 flex flex-col relative overflow-hidden group hover:shadow-md transition-all">
+            <div className="absolute top-0 left-0 w-full h-1 bg-slate-100 group-hover:bg-blue-600 transition-colors" />
+            <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{m.label}</span>
+            <span className={`text-4xl font-black mt-3 tracking-tighter ${m.color}`}>{m.value}</span>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-3 gap-8">
+      <div className="grid grid-cols-12 gap-8">
         {/* Main Table Area */}
-        <div className="col-span-2 flex flex-col space-y-6">
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
-              <h2 className="font-semibold text-slate-800">Recent Investigations</h2>
+        <div className="col-span-12 lg:col-span-8">
+          <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="px-8 py-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+              <h2 className="font-black text-slate-900 uppercase tracking-widest text-xs">Priority Investigations</h2>
+              <span className="text-[10px] font-bold text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded uppercase">TOP 5 ACTIVE</span>
             </div>
             <div className="overflow-x-auto">
               {cases.length === 0 && !loading ? (
-                <div className="p-8 text-center text-slate-500">No cases found. Run a simulation to populate data.</div>
+                <div className="p-16 text-center text-slate-400 font-medium">No active investigations. Run a scenario to begin triage.</div>
               ) : (
-                <table className="w-full text-left text-sm whitespace-nowrap">
-                  <thead className="bg-white border-b border-slate-100 text-slate-500 font-medium">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-white border-b border-slate-100 text-slate-400 font-black uppercase tracking-[0.2em] text-[10px]">
                     <tr>
-                      <th className="px-6 py-3">Event Type</th>
-                      <th className="px-6 py-3">Time</th>
-                      <th className="px-6 py-3">Risk</th>
-                      <th className="px-6 py-3">Score</th>
-                      <th className="px-6 py-3">Action Taken</th>
-                      <th className="px-6 py-3"></th>
+                      <th className="px-8 py-4">Security Event</th>
+                      <th className="px-8 py-4">Triage Time</th>
+                      <th className="px-8 py-4 text-center">Risk Level</th>
+                      <th className="px-8 py-4 text-right">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-slate-50">
                     {cases.map((c) => (
-                      <tr key={c.caseId} className="hover:bg-slate-50 transition-colors group">
-                        <td className="px-6 py-4 font-medium flex items-center space-x-3">
-                          {getEventIcon(c.eventType)}
-                          <span className="capitalize">{c.eventType.replace('_', ' ')}</span>
+                      <tr 
+                        key={c.caseId} 
+                        onClick={() => window.location.href = `/case/${c.caseId}`}
+                        className="hover:bg-blue-50/50 transition-colors cursor-pointer group"
+                      >
+                        <td className="px-8 py-5">
+                          <div className="flex items-center space-x-4">
+                            <div className="p-2.5 bg-slate-50 rounded-xl group-hover:bg-white transition-colors border border-transparent group-hover:border-blue-100">
+                              {getEventIcon(c.eventType)}
+                            </div>
+                            <div>
+                               <div className="font-black text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors capitalize">{c.eventType.replace('_', ' ')}</div>
+                               <div className="text-[10px] font-mono font-bold text-slate-400 uppercase">ID: {c.caseId.slice(0, 8)}</div>
+                            </div>
+                          </div>
                         </td>
-                        <td className="px-6 py-4 text-slate-500">
+                        <td className="px-8 py-5 text-slate-500 font-semibold text-xs whitespace-nowrap">
                           {formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}
                         </td>
-                        <td className="px-6 py-4">{getRiskBadge(c.classification)}</td>
-                        <td className="px-6 py-4 font-mono text-slate-600">{c.riskScore}</td>
-                        <td className="px-6 py-4">
-                          <span className="inline-flex items-center text-xs font-medium text-slate-700 bg-slate-100 px-2 py-1 rounded">
-                            {c.action}
-                          </span>
+                        <td className="px-8 py-5 text-center">
+                          <div className="flex flex-col items-center">
+                            {getRiskBadge(c.classification)}
+                            <span className="text-[9px] font-mono font-black text-slate-300 mt-1">SCORE {c.riskScore}</span>
+                          </div>
                         </td>
-                        <td className="px-6 py-4 text-right">
-                          <Link href={`/case/${c.caseId}`} className="text-blue-600 hover:text-blue-800 font-medium text-sm opacity-0 group-hover:opacity-100 transition-opacity">
-                            View details &rarr;
-                          </Link>
+                        <td className="px-8 py-5 text-right">
+                          <div className="flex items-center justify-end space-x-3">
+                            <span className="inline-flex items-center text-[10px] font-black text-slate-600 bg-slate-100 px-2 py-0.5 rounded-lg uppercase tracking-wider">
+                              {c.action.replace('_', ' ')}
+                            </span>
+                            <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 transition-colors" />
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -149,34 +174,36 @@ export default function DashboardPage() {
         </div>
 
         {/* Demo Controller Sidebar */}
-        <div className="col-span-1">
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 sticky top-8">
-            <h2 className="font-semibold text-slate-800 flex items-center mb-1">
-              <Play className="w-5 h-5 text-green-500 mr-2" />
+        <div className="col-span-12 lg:col-span-4">
+          <div className="bg-slate-900 rounded-3xl p-8 shadow-2xl relative overflow-hidden border border-slate-800">
+            <div className="absolute top-0 right-0 p-4 opacity-10">
+              <Play className="w-20 h-20 text-blue-500" />
+            </div>
+            <h2 className="font-black text-blue-400 uppercase tracking-[0.2em] text-xs mb-2">
               Scenario Simulator
             </h2>
-            <p className="text-sm text-slate-500 mb-6 pb-4 border-b border-slate-100">Inject events into the planner graph to test triage rules.</p>
+            <p className="text-xs text-slate-500 mb-8 font-medium">Inject synthetic high-fidelity audit events</p>
             
-            <div className="space-y-4">
+            <div className="space-y-4 relative z-10">
               <ScenarioButton 
-                label="Safe Login" desc="Trusted IP, Office Wifi" 
+                label="Safe Login" desc="Standard office session" 
                 onClick={() => simulateScenario('safe_login')}
                 loading={simulating === 'safe_login'}
               />
               <ScenarioButton 
-                label="Malicious Login" desc="Russia VPN, Account Takeover" 
+                label="Malicious Login" desc="VPN based ATO attempt" 
                 onClick={() => simulateScenario('malicious_login')}
                 loading={simulating === 'malicious_login'}
                 variant="danger"
               />
               <ScenarioButton 
-                label="Targeted Phishing" desc="Urgent text, Bad domain" 
+                label="Targeted Phishing" desc="Email auth failure" 
                 onClick={() => simulateScenario('phishing_email')}
                 loading={simulating === 'phishing_email'}
                 variant="warning"
               />
               <ScenarioButton 
-                label="Suspicious Link" desc="bit.ly url resolving bad" 
+                label="Suspicious Link" desc="Redirect to bad domain" 
                 onClick={() => simulateScenario('url_click')}
                 loading={simulating === 'url_click'}
               />
@@ -188,27 +215,35 @@ export default function DashboardPage() {
   );
 }
 
+function ChevronRight({ className }: any) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+    </svg>
+  );
+}
+
 function ScenarioButton({ label, desc, onClick, loading, variant = 'default' }: any) {
   const baseColors = variant === 'danger' 
-    ? 'border-red-200 hover:border-red-300 hover:bg-red-50' 
+    ? 'bg-red-500/10 border-red-500/20 hover:bg-red-500/20 hover:border-red-500/40 text-red-400' 
     : variant === 'warning'
-      ? 'border-amber-200 hover:border-amber-300 hover:bg-amber-50'
-      : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50';
+      ? 'bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/20 hover:border-amber-500/40 text-amber-400'
+      : 'bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20 hover:border-blue-500/40 text-blue-400';
 
   return (
     <button 
       onClick={onClick} 
       disabled={loading}
-      className={`w-full text-left p-4 rounded-lg border ${baseColors} transition-all duration-200 group flex justify-between items-center`}
+      className={`w-full text-left p-4 rounded-2xl border ${baseColors} transition-all duration-300 group flex justify-between items-center shadow-lg shadow-black/10`}
     >
       <div>
-        <div className="font-medium text-slate-800">{label}</div>
-        <div className="text-xs text-slate-500 mt-1">{desc}</div>
+        <div className="font-black text-xs uppercase tracking-widest">{label}</div>
+        <div className="text-[10px] opacity-60 mt-1 font-bold">{desc}</div>
       </div>
       {loading ? (
-        <RefreshCw className="w-4 h-4 animate-spin text-slate-400" />
+        <RefreshCw className="w-3 h-3 animate-spin" />
       ) : (
-        <span className="text-xl font-thin text-slate-300 group-hover:text-blue-500 transition-colors">&rarr;</span>
+        <Play className="w-3 h-3 opacity-40 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
       )}
     </button>
   );

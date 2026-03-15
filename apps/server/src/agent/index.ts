@@ -2,6 +2,7 @@ import { StateGraph, END, START } from '@langchain/langgraph';
 import { AgentState, InitialState } from './state';
 import { getIpInfo, getVpnApi, getVirusTotalIp, getVirusTotalDomain } from '../services/enrichment';
 import { getRecentLogins, getAllowlistMatch, saveCase, saveToolCall } from '../db';
+import { askBackboard } from '../services/backboard';
 import { v4 as uuidv4 } from 'uuid';
 import { NormalizedEvent } from '@sentry/shared';
 
@@ -37,6 +38,7 @@ const graphStateChannels: any = {
   risk_score: null,
   risk_level: null,
   action: null,
+  guidance: null,
   tool_calls: {
     value: (x: any, y: any) => y ? x.concat(y) : x,
     default: () => []
@@ -171,7 +173,34 @@ const decisionNode = async (state: AgentState): Promise<Partial<AgentState>> => 
 
   recordTool(state, 'policy_engine', `Risk Score computed: ${score} (${classification}). Policy action: ${action}`);
 
-  return { risk_score: score, risk_level: classification, action, evidence_list: evidence };
+    // Generate AI guidance using real LLM
+    const prompt = `Analyze this security event and provide a structured guidance.
+    Event Type: ${state.event.eventType}
+    Risk Score: ${score}
+    Evidence: ${evidence.join(', ')}
+    Classification: ${classification}
+    
+    Provide the response in JSON format with:
+    {
+      "summary": "one sentence summary of the threat",
+      "containmentSteps": ["step 1", "step 2"],
+      "escalationAdvice": "specific advice on who to notify"
+    }`;
+
+    let guidance;
+    try {
+      const llmResponse = await askBackboard(prompt, "You are a professional SOC Analyst assistant. Respond ONLY with valid JSON.");
+      guidance = JSON.parse(llmResponse);
+    } catch (err) {
+      console.warn('Backboard failed, using fallback guidance');
+      guidance = {
+        summary: `Possible ${state.event.eventType} detected with ${classification} risk.`,
+        containmentSteps: ['Monitor session', 'Flag account'],
+        escalationAdvice: 'Standard observation.'
+      };
+    }
+
+  return { risk_score: score, risk_level: classification, action, evidence_list: evidence, guidance };
 };
 
 // Node 9: Persist
@@ -187,6 +216,7 @@ const persistNode = async (state: AgentState): Promise<Partial<AgentState>> => {
     action: state.action!,
     actionStatus: 'executed',
     evidenceList: state.evidence_list,
+    guidance: state.guidance,
     createdAt: new Date().toISOString()
   });
 

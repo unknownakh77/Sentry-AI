@@ -35,8 +35,12 @@ export interface AgentState {
   risk_score: number;
   risk_level: 'LOW' | 'MEDIUM' | 'HIGH' | null;
   action: string | null;
-
-  // Global tracker for UI
+  guidance?: {
+    summary: string;
+    threatContext: string;
+    containmentSteps: string[];
+    escalationAdvice: string;
+  };
   tool_calls: ToolCall[];
 }
 

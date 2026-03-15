@@ -71,6 +71,55 @@ export const CaseRecordSchema = z.object({
   action: ActionResultSchema,
   actionStatus: z.enum(['pending', 'executed', 'failed', 'rolled_back']),
   createdAt: z.string().datetime(),
-  evidenceList: z.array(z.string()).optional(), // Extracted for UI convenience
+  evidenceList: z.array(z.string()).optional(), 
+  guidance: z.object({
+    summary: z.string(),
+    threatContext: z.string(),
+    containmentSteps: z.array(z.string()),
+    escalationAdvice: z.string(),
+  }).optional(),
 });
 export type CaseRecord = z.infer<typeof CaseRecordSchema>;
+
+export const AttackChainLinkSchema = z.object({
+  caseId: z.string(),
+  eventType: EventTypeSchema,
+  timestamp: z.string().datetime(),
+  riskScore: z.number(),
+});
+export type AttackChainLink = z.infer<typeof AttackChainLinkSchema>;
+
+export const AttackChainSchema = z.object({
+  chainId: z.string(),
+  subject: z.string(), // user or IP
+  links: z.array(AttackChainLinkSchema),
+  correlationReason: z.string(),
+});
+export type AttackChain = z.infer<typeof AttackChainSchema>;
+
+export const ChatMessageSchema = z.object({
+  id: z.string(),
+  caseId: z.string(),
+  role: z.enum(['user', 'assistant']),
+  content: z.string(),
+  createdAt: z.string().datetime(),
+});
+export type ChatMessage = z.infer<typeof ChatMessageSchema>;
+
+export const ThreatIntelResultSchema = z.object({
+  query: z.string(),
+  type: z.enum(['ip', 'domain', 'url', 'file_hash']),
+  reputation: z.string(),
+  provider: z.string(),
+  severity: z.enum(['CLEAN', 'SUSPICIOUS', 'MALICIOUS']),
+  details: z.record(z.any()),
+  summary: z.string(),
+});
+export type ThreatIntelResult = z.infer<typeof ThreatIntelResultSchema>;
+
+export const AuthStatusSchema = z.object({
+  isAuthenticated: z.boolean(),
+  userEmail: z.string().optional(),
+  isMfaTrusted: z.boolean().default(false),
+});
+export type AuthStatus = z.infer<typeof AuthStatusSchema>;
