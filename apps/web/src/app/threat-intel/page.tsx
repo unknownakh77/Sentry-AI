@@ -22,19 +22,15 @@ export default function ThreatIntelPage() {
     });
   };
 
-  const isLikelyUrl = (value: string) => /^https?:\/\//i.test(value.trim());
+  const isValidFileHash = (value: string) => /^(?:[a-fA-F0-9]{32}|[a-fA-F0-9]{40}|[a-fA-F0-9]{64})$/.test(value.trim());
 
   const handleLookup = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
 
     if (type === 'ip') {
-      if (isLikelyUrl(query)) {
-        setErrorMessage('This looks like a URL. Please select the URL field.');
-        return;
-      }
       if (!isValidIpv4(query)) {
-        setErrorMessage('Please enter a valid IPv4 address for IP lookup.');
+        setErrorMessage('Please enter a valid IP address.');
         return;
       }
     }
@@ -43,11 +39,18 @@ export default function ThreatIntelPage() {
       try {
         const parsed = new URL(query.trim());
         if (!['http:', 'https:'].includes(parsed.protocol)) {
-          setErrorMessage('Please enter a valid URL with http:// or https://');
+          setErrorMessage('Please enter a valid URL.');
           return;
         }
       } catch {
-        setErrorMessage('Please enter a valid URL and use the URL field.');
+        setErrorMessage('Please enter a valid URL.');
+        return;
+      }
+    }
+
+    if (type === 'file_hash') {
+      if (!isValidFileHash(query)) {
+        setErrorMessage('Please enter a valid file hash.');
         return;
       }
     }

@@ -49,6 +49,16 @@ const FIXTURES = {
   vtDomain(domain: string) {
     if (domain === 'c0rp-support.com' || domain === 'bit.ly') return { data: { attributes: { last_analysis_stats: { malicious: 8, suspicious: 2, harmless: 40 } } } };
     return { data: { attributes: { last_analysis_stats: { malicious: 0, suspicious: 0, harmless: 70 } } } };
+  },
+  vtUrl(url: string) {
+    if (/c0rp-support\.com|bit\.ly/i.test(url)) return { data: { attributes: { last_analysis_stats: { malicious: 8, suspicious: 2, harmless: 40 } } } };
+    return { data: { attributes: { last_analysis_stats: { malicious: 0, suspicious: 0, harmless: 70 } } } };
+  },
+  vtFileHash(fileHash: string) {
+    if (/^e3b0c44298fc1c149afbf4c8996fb924/i.test(fileHash)) {
+      return { data: { attributes: { last_analysis_stats: { malicious: 0, suspicious: 0, harmless: 80 } } } };
+    }
+    return { data: { attributes: { last_analysis_stats: { malicious: 3, suspicious: 1, harmless: 55 } } } };
   }
 };
 
@@ -158,5 +168,66 @@ export async function getVirusTotalDomain(domain: string) {
   } catch (err) {
     console.warn(`vt domain fetch failed for ${domain}, using fixture.`);
     return FIXTURES.vtDomain(domain);
+  }
+}
+
+function toVirusTotalUrlId(url: string) {
+  return Buffer.from(url).toString('base64url');
+}
+
+export async function getVirusTotalUrl(url: string) {
+  const cacheKey = `vt:url:${url}`;
+  const cached = getCached(cacheKey);
+  if (cached) return cached;
+
+  if (USE_FIXTURES) {
+    const data = FIXTURES.vtUrl(url);
+    setCache(cacheKey, data);
+    return data;
+  }
+
+  try {
+    const urlId = toVirusTotalUrlId(url);
+    const res = await fetchWithTimeout(`https://www.virustotal.com/api/v3/urls/${urlId}`, {
+      headers: { 'x-apikey': env.virusTotalApiKey || '' }
+    });
+    const data = await res.json();
+    if (!data?.data?.attributes?.last_analysis_stats) {
+      console.warn(`vt url response missing stats for ${url}, using fixture.`);
+      return FIXTURES.vtUrl(url);
+    }
+    setCache(cacheKey, data);
+    return data;
+  } catch (err) {
+    console.warn(`vt url fetch failed for ${url}, using fixture.`);
+    return FIXTURES.vtUrl(url);
+  }
+}
+
+export async function getVirusTotalFileHash(fileHash: string) {
+  const cacheKey = `vt:file:${fileHash}`;
+  const cached = getCached(cacheKey);
+  if (cached) return cached;
+
+  if (USE_FIXTURES) {
+    const data = FIXTURES.vtFileHash(fileHash);
+    setCache(cacheKey, data);
+    return data;
+  }
+
+  try {
+    const res = await fetchWithTimeout(`https://www.virustotal.com/api/v3/files/${fileHash}`, {
+      headers: { 'x-apikey': env.virusTotalApiKey || '' }
+    });
+    const data = await res.json();
+    if (!data?.data?.attributes?.last_analysis_stats) {
+      console.warn(`vt file response missing stats for ${fileHash}, using fixture.`);
+      return FIXTURES.vtFileHash(fileHash);
+    }
+    setCache(cacheKey, data);
+    return data;
+  } catch (err) {
+    console.warn(`vt file fetch failed for ${fileHash}, using fixture.`);
+    return FIXTURES.vtFileHash(fileHash);
   }
 }

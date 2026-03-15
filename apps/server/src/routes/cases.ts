@@ -122,7 +122,16 @@ router.post('/threat-intel/lookup', async (req, res) => {
     const result = await lookupThreatIndicator(query, type);
     res.json({ result });
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    const message = String(error?.message || '');
+    if (
+      message === 'Indicator query is required' ||
+      message === 'Please enter a valid IP address.' ||
+      message === 'Please enter a valid URL.' ||
+      message === 'Please enter a valid file hash.'
+    ) {
+      return res.status(400).json({ error: message });
+    }
+    res.status(500).json({ error: message || 'Threat intelligence lookup failed.' });
   }
 });
 

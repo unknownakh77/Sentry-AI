@@ -1,9 +1,7 @@
-import { getIpInfo, getVpnApi, getVirusTotalDomain, getVirusTotalIp } from './enrichment';
-import { env } from '../config/env';
+import { isIP } from 'node:net';
+import { getIpInfo, getVpnApi, getVirusTotalFileHash, getVirusTotalIp, getVirusTotalUrl } from './enrichment';
 
-type IndicatorType = 'ip' | 'domain' | 'url' | 'file_hash';
-
-const isIp = (value: string) => /^(?:\d{1,3}\.){3}\d{1,3}$/.test(value.trim());
+type IndicatorType = 'ip' | 'url' | 'file_hash';
 
 const asVerdict = (maliciousDetections: number, suspiciousDetections = 0) => {
   if (maliciousDetections > 0) {
@@ -50,43 +48,38 @@ async function lookupIp(ip: string) {
   };
 }
 
-async function lookupDomain(domain: string) {
-  const vtDomain = await getVirusTotalDomain(domain);
-  const stats = vtDomain?.data?.attributes?.last_analysis_stats || {};
+async function lookupUrl(url: string) {
+  const vtUrl = await getVirusTotalUrl(url);
+  const stats = vtUrl?.data?.attributes?.last_analysis_stats || {};
   const maliciousDetections = Number(stats.malicious || 0);
   const suspiciousDetections = Number(stats.suspicious || 0);
   const verdict = asVerdict(maliciousDetections, suspiciousDetections);
 
   return {
-    query: domain,
-    type: 'domain' as const,
+    query: url,
+    type: 'url' as const,
     reputation: verdict.reputation,
-    provider: 'VirusTotal',
+    provider: 'VirusTotal (URL)',
     severity: verdict.severity,
     details: {
       geo: 'N/A',
       asn: 'N/A',
       vpn: false,
+      proxy: false,
+      tor: false,
       maliciousDetections,
       suspiciousDetections,
     },
     summary: maliciousDetections > 0
-      ? `VirusTotal flagged ${maliciousDetections} malicious detections for this domain.`
+      ? `VirusTotal flagged ${maliciousDetections} malicious detections for this URL.`
       : suspiciousDetections > 0
-        ? `No malicious detections but ${suspiciousDetections} suspicious detections found for this domain.`
-        : 'No malicious reputation signals detected for this domain.',
+        ? `No malicious detections but ${suspiciousDetections} suspicious detections found for this URL.`
+        : 'No malicious reputation signals detected for this URL.',
   };
 }
 
 async function lookupFileHash(fileHash: string) {
-  if (!env.virusTotalApiKey) {
-    throw new Error('VT_API_KEY is missing');
-  }
-
-  const response = await fetch(`https://www.virustotal.com/api/v3/files/${fileHash}`, {
-    headers: { 'x-apikey': env.virusTotalApiKey },
-  });
-  const data = await response.json();
+  const data = await getVirusTotalFileHash(fileHash);
   const stats = data?.data?.attributes?.last_analysis_stats || {};
   const maliciousDetections = Number(stats.malicious || 0);
   const suspiciousDetections = Number(stats.suspicious || 0);
@@ -102,6 +95,8 @@ async function lookupFileHash(fileHash: string) {
       geo: 'N/A',
       asn: 'N/A',
       vpn: false,
+      proxy: false,
+      tor: false,
       maliciousDetections,
       suspiciousDetections,
     },
@@ -113,34 +108,46 @@ async function lookupFileHash(fileHash: string) {
   };
 }
 
+const HASH_REGEX = /^(?:[a-fA-F0-9]{32}|[a-fA-F0-9]{40}|[a-fA-F0-9]{64})$/;
+
+function validateIndicatorByType(value: string, type: IndicatorType) {
+  if (type === 'ip') {
+    if (isIP(value) === 0) {
+      throw new Error('Please enter a valid IP address.');
+    }
+    return;
+  }
+
+  if (type === 'url') {
+    try {
+      const parsed = new URL(value);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        throw new Error('Please enter a valid URL.');
+      }
+    } catch {
+      throw new Error('Please enter a valid URL.');
+    }
+    return;
+  }
+
+  if (!HASH_REGEX.test(value)) {
+    throw new Error('Please enter a valid file hash.');
+  }
+}
+
 export async function lookupThreatIndicator(query: string, type: IndicatorType) {
   const value = query.trim();
   if (!value) {
     throw new Error('Indicator query is required');
   }
 
+  validateIndicatorByType(value, type);
+
   if (type === 'ip') {
     return lookupIp(value);
   }
-  if (type === 'domain') {
-    return lookupDomain(value.toLowerCase());
-  }
   if (type === 'url') {
-    const url = new URL(value);
-    const result = await lookupDomain(url.hostname.toLowerCase());
-    return {
-      ...result,
-      query: value,
-      type: 'url' as const,
-      summary: `${result.summary} URL host analyzed: ${url.hostname.toLowerCase()}.`,
-    };
+    return lookupUrl(value);
   }
-  if (type === 'file_hash') {
-    return lookupFileHash(value);
-  }
-
-  if (isIp(value)) {
-    return lookupIp(value);
-  }
-  return lookupDomain(value.toLowerCase());
+  return lookupFileHash(value);
 }
