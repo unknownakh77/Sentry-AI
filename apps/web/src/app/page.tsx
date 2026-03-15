@@ -16,19 +16,9 @@ type RiskTrendPoint = {
   statusDistribution: { open: number; closed: number };
 };
 
-type VerdictStats = {
-  confirmed: number;
-  overridden: number;
-  escalated: number;
-  pending_review: number;
-  total: number;
-  accuracy: number | null;
-};
-
 export default function DashboardPage() {
   const [cases, setCases] = useState<CaseRecord[]>([]);
   const [riskTrend, setRiskTrend] = useState<RiskTrendPoint[]>([]);
-  const [verdictStats, setVerdictStats] = useState<VerdictStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [trendLoading, setTrendLoading] = useState(true);
   const [simulating, setSimulating] = useState<string | null>(null);
@@ -59,24 +49,13 @@ export default function DashboardPage() {
     }
   };
 
-  const fetchVerdictStats = async () => {
-    try {
-      const data = await apiFetch<VerdictStats>('/api/cases/verdict-stats');
-      setVerdictStats(data);
-    } catch (err) {
-      console.error('Failed to fetch verdict stats', err);
-    }
-  };
-
   useEffect(() => {
     fetchCases();
     fetchRiskTrend();
-    fetchVerdictStats();
     // Auto-sync every 30 seconds for autonomous demo
     const interval = setInterval(() => {
       fetchCases();
       fetchRiskTrend();
-      fetchVerdictStats();
     }, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -94,20 +73,6 @@ export default function DashboardPage() {
     }
   };
 
-  const highRiskCount = cases.filter(c => c.classification === 'HIGH').length;
-  const pendingReview = verdictStats?.pending_review ?? 0;
-  const agentAccuracy = verdictStats?.accuracy;
-  const metrics = [
-    { label: 'Active Investigations', value: cases.length, color: 'text-slate-900', sub: null },
-    { label: 'High Risk', value: highRiskCount, color: 'text-red-600', sub: null },
-    { label: 'Pending Review', value: pendingReview, color: 'text-amber-600', sub: null },
-    {
-      label: 'Agent Accuracy',
-      value: agentAccuracy !== null && agentAccuracy !== undefined ? `${agentAccuracy}%` : '—',
-      color: agentAccuracy !== null && agentAccuracy !== undefined ? (agentAccuracy >= 80 ? 'text-emerald-600' : agentAccuracy >= 60 ? 'text-amber-600' : 'text-red-600') : 'text-slate-400',
-      sub: verdictStats && verdictStats.total > 0 ? `${verdictStats.confirmed}✓ ${verdictStats.overridden}✗` : 'No verdicts yet',
-    },
-  ];
 
   return (
     <div className="p-8 max-w-7xl mx-auto w-full">
@@ -138,18 +103,6 @@ export default function DashboardPage() {
       </div>
 
       <SecurityRiskTrendCard trend={riskTrend} loading={trendLoading} />
-
-      {/* Metrics Cards */}
-      <div className="grid grid-cols-4 gap-6 mb-10">
-        {metrics.map((m, i) => (
-          <div key={i} className="bg-white rounded-3xl shadow-sm border border-slate-200 p-8 flex flex-col relative overflow-hidden group hover:shadow-md transition-all">
-            <div className="absolute top-0 left-0 w-full h-1 bg-slate-100 group-hover:bg-blue-600 transition-colors" />
-            <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{m.label}</span>
-            <span className={`text-4xl font-black mt-3 tracking-tighter ${m.color}`}>{m.value}</span>
-            {m.sub && <span className="text-[11px] text-slate-400 font-semibold mt-1">{m.sub}</span>}
-          </div>
-        ))}
-      </div>
 
       <div className="grid grid-cols-12 gap-8">
         {/* Main Table Area */}
