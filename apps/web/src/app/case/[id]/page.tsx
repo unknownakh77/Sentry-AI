@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Headphones, MessageSquare, RefreshCw, Send } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Headphones, MessageSquare, RefreshCw, Send } from 'lucide-react';
 import { CaseRecord, ChatMessage, ToolCall } from '@sentry/shared';
 import { apiFetch, apiUrl } from '@/lib/api';
 import { formatActionLabel, formatCaseAge, formatEventTypeLabel } from '@/components/cases/presenters';
@@ -64,6 +64,8 @@ type CaseDetail = CaseRecord & {
   };
 };
 
+type FinalClassification = 'False Positive' | 'Benign Activity' | 'Suspicious Activity' | 'Confirmed Security Incident';
+
 export default function CaseDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [caseData, setCaseData] = useState<CaseDetail | null>(null);
@@ -72,6 +74,10 @@ export default function CaseDetailPage() {
   const [chatMessage, setChatMessage] = useState('');
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [closureError, setClosureError] = useState('');
+  const [finalClassification, setFinalClassification] = useState<FinalClassification | ''>('');
+  const [analystConfirmed, setAnalystConfirmed] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -83,13 +89,15 @@ export default function CaseDetailPage() {
         if (!cancelled && data.caseData) {
           setCaseData(data.caseData);
           setChatHistory(data.caseData.chatMessages || []);
+          const aiCategory = data.caseData.guidance?.investigationReport?.riskClassification?.category;
+          if (aiCategory) {
+            setFinalClassification(aiCategory);
+          }
         }
       } catch (error) {
         console.error(error);
       } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        if (!cancelled) setLoading(false);
       }
     };
 
@@ -109,9 +117,7 @@ export default function CaseDetailPage() {
     try {
       setBriefingLoading(true);
       const response = await fetch(apiUrl(`/api/cases/${id}/brief`), { method: 'POST' });
-      if (!response.ok) {
-        throw new Error('Voice brief failed.');
-      }
+      if (!response.ok) throw new Error('Voice brief failed.');
       const blob = await response.blob();
       const audioUrl = URL.createObjectURL(blob);
       new Audio(audioUrl).play();
@@ -124,9 +130,7 @@ export default function CaseDetailPage() {
 
   const handleSendMessage = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!chatMessage.trim() || chatLoading) {
-      return;
-    }
+    if (!chatMessage.trim() || chatLoading) return;
 
     const pendingUserMessage: ChatMessage = {
       id: `local-${Date.now()}`,
@@ -167,14 +171,36 @@ export default function CaseDetailPage() {
     );
   }
 
-  if (!caseData) {
-    return <div className="p-8 text-red-500">Case not found.</div>;
-  }
+  if (!caseData) return <div className="p-8 text-red-500">Case not found.</div>;
 
   const report = caseData.guidance?.investigationReport;
   const severity = report?.finalVerdict.severity || 'Medium';
   const verdict = report?.riskClassification.category || 'Suspicious Activity';
   const recommendedAction = report?.recommendedSocActions?.[0] || caseData.action;
+  const isClosed = String(caseData.actionStatus) === 'closed';
+  const closeDisabled = closing || !finalClassification || !analystConfirmed;
+
+  const handleCloseCase = async () => {
+    try {
+      setClosing(true);
+      setClosureError('');
+      const response = await fetch(apiUrl(`/api/cases/${id}/close`), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          finalClassification,
+          analystConfirmed,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Unable to close case.');
+      if (payload.caseData) setCaseData(payload.caseData as CaseDetail);
+    } catch (error) {
+      setClosureError(error instanceof Error ? error.message : 'Unable to close case.');
+    } finally {
+      setClosing(false);
+    }
+  };
 
   return (
     <div className="p-8 max-w-6xl mx-auto w-full space-y-6">
@@ -186,18 +212,86 @@ export default function CaseDetailPage() {
           </Link>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight mt-3">SOC Tier-2 Investigation</h1>
           <p className="text-slate-500 text-sm mt-1">
-            Case {caseData.caseId.slice(0, 8)} • {formatEventTypeLabel(caseData.eventType)} • {formatCaseAge(caseData.createdAt)}
+            Case {caseData.caseId.slice(0, 8)} | {formatEventTypeLabel(caseData.eventType)} | {formatCaseAge(caseData.createdAt)}
           </p>
         </div>
-        <button
-          onClick={handlePlayBrief}
-          disabled={briefingLoading}
-          className="flex items-center px-4 py-2.5 rounded-xl font-bold text-sm bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-50"
-        >
-          {briefingLoading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Headphones className="w-4 h-4 mr-2" />}
-          AI Brief
-        </button>
+        <div className="flex items-center gap-2">
+          {isClosed ? (
+            <Link href={`/case/${id}/report`} className="flex items-center px-4 py-2.5 rounded-xl font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-500">
+              <CheckCircle2 className="w-4 h-4 mr-2" />
+              View Report
+            </Link>
+          ) : (
+            <button
+              onClick={handleCloseCase}
+              disabled={closeDisabled}
+              className="flex items-center px-4 py-2.5 rounded-xl font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-50"
+              title="Close case with analyst-confirmed final classification"
+            >
+              {closing ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
+              Close Case
+            </button>
+          )}
+          <button
+            onClick={handlePlayBrief}
+            disabled={briefingLoading}
+            className="flex items-center px-4 py-2.5 rounded-xl font-bold text-sm bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-50"
+          >
+            {briefingLoading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Headphones className="w-4 h-4 mr-2" />}
+            AI Brief
+          </button>
+        </div>
       </div>
+
+      {!isClosed && (
+        <section className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+          <h2 className="text-sm font-black uppercase tracking-widest text-slate-800">Case Closure</h2>
+          <p className="text-sm text-slate-600">
+            Select final SOC triage classification and confirm analyst review before closure. AI verdicts are recommendations only.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Final Classification</label>
+              <select
+                value={finalClassification}
+                onChange={(event) => setFinalClassification(event.target.value as FinalClassification)}
+                className="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+              >
+                <option value="">Select classification</option>
+                <option value="False Positive">False Positive</option>
+                <option value="Benign Activity">Benign Activity</option>
+                <option value="Suspicious Activity">Suspicious Activity</option>
+                <option value="Confirmed Security Incident">Confirmed Security Incident</option>
+              </select>
+            </div>
+            <div className="flex items-end">
+              <label className="inline-flex items-center text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={analystConfirmed}
+                  onChange={(event) => setAnalystConfirmed(event.target.checked)}
+                  className="mr-2"
+                />
+                I confirm this final classification as analyst-reviewed.
+              </label>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {closureError && (
+        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+          {closureError}
+        </div>
+      )}
+
+      {isClosed && (
+        <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
+          Case closed on {caseData.closedAt ? new Date(caseData.closedAt).toLocaleString() : 'unknown time'} with final classification{' '}
+          <span className="font-semibold">{caseData.finalClassification || verdict}</span> and severity{' '}
+          <span className="font-semibold">{caseData.finalSeverity || severity}</span>.
+        </div>
+      )}
 
       <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <SummaryCard label="Severity" value={severity} />
@@ -301,11 +395,7 @@ export default function CaseDetailPage() {
             className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-sm"
             placeholder="Ask for deeper triage guidance..."
           />
-          <button
-            type="submit"
-            disabled={!chatMessage.trim() || chatLoading}
-            className="px-3 py-2 rounded-xl bg-blue-600 text-white disabled:opacity-50"
-          >
+          <button type="submit" disabled={!chatMessage.trim() || chatLoading} className="px-3 py-2 rounded-xl bg-blue-600 text-white disabled:opacity-50">
             {chatLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </button>
         </form>

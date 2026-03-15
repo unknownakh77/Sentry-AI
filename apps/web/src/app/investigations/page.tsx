@@ -11,6 +11,8 @@ export default function InvestigationsPage() {
   const [cases, setCases] = useState<CaseRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortOption, setSortOption] = useState<'time_desc' | 'time_asc' | 'risk_desc' | 'risk_asc' | 'event_type'>('time_desc');
+  const [showFilters, setShowFilters] = useState(false);
 
   const fetchCases = async () => {
     try {
@@ -30,18 +32,33 @@ export default function InvestigationsPage() {
     fetchCases();
   }, []);
 
-  const filteredCases = cases.filter(c => 
-    c.caseId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.classification.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.eventType.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const sortedFilteredCases = [...cases]
+    .filter((c) =>
+      c.caseId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.classification.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.eventType.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => {
+      if (sortOption === 'time_desc') {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+      if (sortOption === 'time_asc') {
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }
+      if (sortOption === 'event_type') {
+        return a.eventType.localeCompare(b.eventType);
+      }
+      const rank = { HIGH: 3, MEDIUM: 2, LOW: 1 };
+      const diff = rank[a.classification] - rank[b.classification];
+      return sortOption === 'risk_desc' ? -diff : diff;
+    });
 
   return (
     <div className="p-8 max-w-7xl mx-auto w-full">
       <div className="flex justify-between items-end mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Investigation Archive</h1>
-          <p className="text-slate-500 mt-1">Full historical audit of all security triage events</p>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Active Investigations</h1>
+          <p className="text-slate-500 mt-1">Open SOC investigations requiring active analyst workflow</p>
         </div>
         <button 
           onClick={fetchCases} 
@@ -64,16 +81,50 @@ export default function InvestigationsPage() {
             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-10 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
           />
         </div>
-        <button className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 flex items-center hover:bg-slate-50">
-          <Filter className="w-4 h-4 mr-2" /> Filter
-        </button>
+        <div className="relative">
+          <button
+            onClick={() => setShowFilters((previous) => !previous)}
+            className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 flex items-center hover:bg-slate-50"
+          >
+            <Filter className="w-4 h-4 mr-2" />
+            Filter
+          </button>
+          {showFilters && (
+            <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-xl shadow-lg z-20 p-3 space-y-3">
+              <FilterGroup
+                label="Risk level"
+                value={sortOption}
+                options={[
+                  { value: 'risk_desc', label: 'High to Low' },
+                  { value: 'risk_asc', label: 'Low to High' },
+                ]}
+                onChange={setSortOption}
+              />
+              <FilterGroup
+                label="Event type"
+                value={sortOption}
+                options={[{ value: 'event_type', label: 'A to Z' }]}
+                onChange={setSortOption}
+              />
+              <FilterGroup
+                label="Time"
+                value={sortOption}
+                options={[
+                  { value: 'time_desc', label: 'Most Recent' },
+                  { value: 'time_asc', label: 'Oldest' },
+                ]}
+                onChange={setSortOption}
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Results Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
-          {filteredCases.length === 0 && !loading ? (
-            <div className="p-12 text-center text-slate-500 font-medium">No investigation records found matching your criteria.</div>
+          {sortedFilteredCases.length === 0 && !loading ? (
+            <div className="p-12 text-center text-slate-500 font-medium">No active investigations found matching your criteria.</div>
           ) : (
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
@@ -86,7 +137,7 @@ export default function InvestigationsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredCases.map((c) => (
+                {sortedFilteredCases.map((c) => (
                   <tr key={c.caseId} className="hover:bg-blue-50/30 transition-colors group">
                     <td className="px-8 py-5">
                       <div className="flex items-center space-x-4">
@@ -134,6 +185,37 @@ export default function InvestigationsPage() {
             </table>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function FilterGroup({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: Array<{ value: 'time_desc' | 'time_asc' | 'risk_desc' | 'risk_asc' | 'event_type'; label: string }>;
+  onChange: (value: 'time_desc' | 'time_asc' | 'risk_desc' | 'risk_asc' | 'event_type') => void;
+}) {
+  return (
+    <div>
+      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">{label}</p>
+      <div className="space-y-1">
+        {options.map((option) => (
+          <button
+            key={option.value}
+            onClick={() => onChange(option.value)}
+            className={`w-full text-left px-3 py-2 rounded-lg text-sm ${
+              value === option.value ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-slate-50 text-slate-600'
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
       </div>
     </div>
   );

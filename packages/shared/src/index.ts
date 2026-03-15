@@ -73,8 +73,17 @@ export const CaseRecordSchema = z.object({
   riskScore: z.number(),
   classification: RiskClassificationSchema,
   action: ActionResultSchema,
-  actionStatus: z.enum(['pending', 'executed', 'failed', 'rolled_back']),
+  actionStatus: z.enum(['pending', 'executed', 'failed', 'rolled_back', 'closed']),
   createdAt: z.string().datetime(),
+  closedAt: z.string().datetime().optional(),
+  analystConfirmed: z.boolean().optional(),
+  finalClassification: z.enum([
+    'False Positive',
+    'Benign Activity',
+    'Suspicious Activity',
+    'Confirmed Security Incident',
+  ]).optional(),
+  finalSeverity: z.enum(['Low', 'Medium', 'High', 'Critical']).optional(),
   evidenceList: z.array(z.string()).optional(), 
   guidance: z.object({
     summary: z.string(),

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getAllCases, getCase, saveChatMessage } from '../db';
+import { closeCase, getActiveCases, getAllCases, getCase, getClosedCases, saveChatMessage } from '../db';
 import { askBackboard } from '../services/backboard';
 import { lookupThreatIndicator } from '../services/threatIntel';
 import { generateVoiceBrief } from '../services/voice';
@@ -10,7 +10,7 @@ const router = Router();
 // Get all cases
 router.get('/', (_req, res) => {
   try {
-    const cases = getAllCases();
+    const cases = getActiveCases();
     res.json({ cases });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -20,21 +20,8 @@ router.get('/', (_req, res) => {
 // Get recent 5 cases for dashboard
 router.get('/recent', (_req, res) => {
   try {
-    const cases = getAllCases().slice(0, 5);
+    const cases = getActiveCases().slice(0, 5);
     res.json({ cases });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Get specific case with details
-router.get('/:id', (req, res) => {
-  try {
-    const caseData = getCase(req.params.id);
-    if (!caseData) {
-      return res.status(404).json({ error: 'Case not found' });
-    }
-    res.json({ caseData });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -90,13 +77,206 @@ router.post('/:id/chat', async (req, res) => {
 // Manual Threat Intel Lookup
 router.post('/threat-intel/lookup', async (req, res) => {
   try {
-    const { query, type } = req.body as { query?: string; type?: 'ip' | 'domain' | 'url' | 'file_hash' };
+    const { query, type } = req.body as { query?: string; type?: 'ip' | 'url' | 'file_hash' };
     if (!query || !type) {
       return res.status(400).json({ error: 'Both query and type are required.' });
     }
 
     const result = await lookupThreatIndicator(query, type);
     res.json({ result });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/closed', (_req, res) => {
+  try {
+    const cases = getClosedCases();
+    res.json({ cases });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/risk-trend', (_req, res) => {
+  try {
+    const cases = getAllCases() as any[];
+
+    const now = new Date();
+    const endHour = new Date(now);
+    endHour.setMinutes(0, 0, 0);
+    const startHour = new Date(endHour);
+    startHour.setHours(startHour.getHours() - 23);
+
+    const buckets = new Map<
+      string,
+      {
+        timestamp: string;
+        totalCases: number;
+        lowCount: number;
+        mediumCount: number;
+        highCount: number;
+        statusDistribution: { open: number; closed: number };
+      }
+    >();
+
+    for (let i = 0; i < 24; i++) {
+      const bucketDate = new Date(startHour);
+      bucketDate.setHours(startHour.getHours() + i);
+      const bucketTimestamp = bucketDate.toISOString().slice(0, 13) + ':00:00.000Z';
+      buckets.set(bucketTimestamp, {
+        timestamp: bucketTimestamp,
+        totalCases: 0,
+        lowCount: 0,
+        mediumCount: 0,
+        highCount: 0,
+        statusDistribution: { open: 0, closed: 0 },
+      });
+    }
+
+    for (const item of cases) {
+      const caseTimestamp = item.createdAt;
+      if (!caseTimestamp) continue;
+
+      const eventTime = new Date(caseTimestamp);
+      if (eventTime < startHour || eventTime > now) continue;
+
+      const bucketDate = new Date(eventTime);
+      bucketDate.setMinutes(0, 0, 0);
+      const bucketTimestamp = bucketDate.toISOString().slice(0, 13) + ':00:00.000Z';
+      const bucket = buckets.get(bucketTimestamp);
+      if (!bucket) continue;
+
+      const inferredSeverity =
+        item.finalSeverity ||
+        item.guidance?.investigationReport?.finalVerdict?.severity ||
+        item.classification ||
+        'Medium';
+      const normalizedSeverity =
+        inferredSeverity === 'LOW'
+          ? 'Low'
+          : inferredSeverity === 'MEDIUM'
+          ? 'Medium'
+          : inferredSeverity === 'HIGH'
+          ? 'High'
+          : inferredSeverity;
+      const status = String(item.actionStatus).toLowerCase() === 'closed' ? 'closed' : 'open';
+
+      bucket.totalCases += 1;
+      if (normalizedSeverity === 'Low') {
+        bucket.lowCount += 1;
+      } else if (normalizedSeverity === 'Medium') {
+        bucket.mediumCount += 1;
+      } else {
+        // Treat Critical as part of High trend for analyst visibility.
+        bucket.highCount += 1;
+      }
+      bucket.statusDistribution[status] += 1;
+    }
+
+    const trend = Array.from(buckets.values()).map((bucket) => ({
+      timestamp: bucket.timestamp,
+      totalCases: bucket.totalCases,
+      lowCount: bucket.lowCount,
+      mediumCount: bucket.mediumCount,
+      highCount: bucket.highCount,
+      statusDistribution: bucket.statusDistribution,
+    }));
+
+    res.json({ trend });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get specific case with details
+router.get('/:id', (req, res) => {
+  try {
+    const caseData = getCase(req.params.id);
+    if (!caseData) {
+      return res.status(404).json({ error: 'Case not found' });
+    }
+    res.json({ caseData });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/:id/close', (req, res) => {
+  try {
+    const caseData = getCase(req.params.id) as any;
+    if (!caseData) {
+      return res.status(404).json({ error: 'Case not found' });
+    }
+
+    const report = caseData.guidance?.investigationReport;
+
+    const { finalClassification, analystConfirmed } = req.body as {
+      finalClassification?: 'False Positive' | 'Benign Activity' | 'Suspicious Activity' | 'Confirmed Security Incident';
+      analystConfirmed?: boolean;
+    };
+
+    if (!finalClassification) {
+      return res.status(400).json({ error: 'Final classification is required before closure.' });
+    }
+    if (!analystConfirmed) {
+      return res.status(400).json({ error: 'Analyst confirmation is required before closure.' });
+    }
+
+    const severityFromFinalClassification: Record<typeof finalClassification, 'Low' | 'Medium' | 'High' | 'Critical'> = {
+      'False Positive': 'Low',
+      'Benign Activity': 'Low',
+      'Suspicious Activity': 'Medium',
+      'Confirmed Security Incident': 'High',
+    };
+    const severity = (report?.finalVerdict?.severity as 'Low' | 'Medium' | 'High' | 'Critical' | undefined) ||
+      severityFromFinalClassification[finalClassification];
+
+    closeCase(req.params.id, {
+      finalClassification,
+      finalSeverity: severity,
+      analystConfirmed,
+      closedAt: new Date().toISOString(),
+    });
+
+    const updatedCase = getCase(req.params.id);
+    res.json({ success: true, caseData: updatedCase });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/:id/report', (req, res) => {
+  try {
+    const caseData = getCase(req.params.id) as any;
+    if (!caseData) {
+      return res.status(404).json({ error: 'Case not found' });
+    }
+    if (caseData.actionStatus !== 'closed') {
+      return res.status(400).json({ error: 'Case report is available only after case closure.' });
+    }
+
+    const report = caseData.guidance?.investigationReport;
+    if (!report) {
+      return res.status(400).json({ error: 'No investigation report available for this case.' });
+    }
+
+    res.json({
+      report: {
+        caseId: caseData.caseId,
+        closedAt: caseData.closedAt,
+        analystConfirmed: !!caseData.analystConfirmed,
+        finalClassification: caseData.finalClassification,
+        finalSeverity: caseData.finalSeverity,
+        alertSummary: report.alertSummary,
+        riskClassification: report.riskClassification,
+        mitreMapping: report.mitreMapping,
+        threatIntelligence: report.threatIntelligence,
+        behavioralAnalysis: report.behavioralAnalysis,
+        recommendedSocActions: report.recommendedSocActions,
+        finalVerdict: report.finalVerdict,
+      },
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

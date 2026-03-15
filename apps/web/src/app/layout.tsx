@@ -1,7 +1,7 @@
 'use client';
 
 import './globals.css';
-import { Shield, LayoutDashboard, History, Search } from 'lucide-react';
+import { Shield, LayoutDashboard, History, Search, FileCheck } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -15,6 +15,7 @@ export default function RootLayout({
   const navItems = [
     { label: 'Dashboard', icon: LayoutDashboard, href: '/' },
     { label: 'Investigations', icon: History, href: '/investigations' },
+    { label: 'Closed Cases', icon: FileCheck, href: '/closed-cases' },
     { label: 'Threat Intel', icon: Search, href: '/threat-intel' },
   ];
 

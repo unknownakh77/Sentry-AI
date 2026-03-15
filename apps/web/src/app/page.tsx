@@ -7,9 +7,23 @@ import Link from 'next/link';
 import { EventIcon, RiskBadge, formatActionLabel, formatCaseAge, formatEventTypeLabel } from '@/components/cases/presenters';
 import { apiFetch, apiUrl } from '@/lib/api';
 
+type RiskTrendPoint = {
+  timestamp: string;
+  totalCases: number;
+  lowCount: number;
+  mediumCount: number;
+  highCount: number;
+  statusDistribution: {
+    open: number;
+    closed: number;
+  };
+};
+
 export default function DashboardPage() {
   const [cases, setCases] = useState<CaseRecord[]>([]);
+  const [riskTrend, setRiskTrend] = useState<RiskTrendPoint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [trendLoading, setTrendLoading] = useState(true);
   const [simulating, setSimulating] = useState<string | null>(null);
 
   const fetchCases = async () => {
@@ -26,10 +40,28 @@ export default function DashboardPage() {
     }
   };
 
+  const fetchRiskTrend = async () => {
+    try {
+      setTrendLoading(true);
+      const data = await apiFetch<{ trend?: RiskTrendPoint[] }>('/api/cases/risk-trend');
+      if (data.trend) {
+        setRiskTrend(data.trend);
+      }
+    } catch (err) {
+      console.error('Failed to fetch risk trend', err);
+    } finally {
+      setTrendLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchCases();
+    fetchRiskTrend();
     // Auto-sync every 30 seconds for autonomous demo
-    const interval = setInterval(fetchCases, 30000);
+    const interval = setInterval(() => {
+      fetchCases();
+      fetchRiskTrend();
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -38,6 +70,7 @@ export default function DashboardPage() {
       setSimulating(scenario);
       await fetch(apiUrl(`/api/scenarios/${scenario}/replay`), { method: 'POST' });
       await fetchCases();
+      await fetchRiskTrend();
     } catch (err) {
       console.error(err);
     } finally {
@@ -69,7 +102,10 @@ export default function DashboardPage() {
              Archive &rarr;
            </Link>
           <button 
-            onClick={fetchCases} 
+            onClick={() => {
+              void fetchCases();
+              void fetchRiskTrend();
+            }} 
             className="flex items-center text-sm font-bold px-5 py-2.5 bg-white border border-slate-200 rounded-xl shadow-sm hover:bg-slate-50 text-slate-700 transition-all hover:border-slate-300"
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin text-blue-500' : ''}`} />
@@ -77,6 +113,8 @@ export default function DashboardPage() {
           </button>
         </div>
       </div>
+
+      <SecurityRiskTrendCard trend={riskTrend} loading={trendLoading} />
 
       {/* Metrics Cards */}
       <div className="grid grid-cols-4 gap-6 mb-10">
@@ -194,6 +232,264 @@ export default function DashboardPage() {
       </div>
     </div>
   );
+}
+
+function SecurityRiskTrendCard({ trend, loading }: { trend: RiskTrendPoint[]; loading: boolean }) {
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const chartHeight = 220;
+  const chartWidth = 1000;
+  const topPadding = 18;
+  const bottomPadding = 34;
+  const leftPadding = 40;
+  const rightPadding = 20;
+  const innerHeight = chartHeight - topPadding - bottomPadding;
+  const innerWidth = chartWidth - leftPadding - rightPadding;
+  const maxY = Math.max(
+    1,
+    ...trend.map((item) => Math.max(item.highCount, item.mediumCount, item.lowCount))
+  );
+  const hasAnyData = trend.some((item) => item.totalCases > 0);
+
+  const points = trend.map((item, index) => {
+    const x = leftPadding + (trend.length <= 1 ? innerWidth / 2 : (index / (trend.length - 1)) * innerWidth);
+    const toY = (value: number) => topPadding + ((maxY - value) / maxY) * innerHeight;
+    return {
+      x,
+      yHigh: toY(item.highCount),
+      yMedium: toY(item.mediumCount),
+      yLow: toY(item.lowCount),
+      ...item,
+    };
+  });
+
+  const highLinePath = buildSmoothPath(points.map((point) => ({ x: point.x, y: point.yHigh })));
+  const mediumLinePath = buildSmoothPath(points.map((point) => ({ x: point.x, y: point.yMedium })));
+  const lowLinePath = buildSmoothPath(points.map((point) => ({ x: point.x, y: point.yLow })));
+  const highAreaPath = highLinePath
+    ? `${highLinePath} L ${points[points.length - 1]?.x ?? leftPadding} ${chartHeight - bottomPadding} L ${points[0]?.x ?? leftPadding} ${chartHeight - bottomPadding} Z`
+    : '';
+  const mediumAreaPath = mediumLinePath
+    ? `${mediumLinePath} L ${points[points.length - 1]?.x ?? leftPadding} ${chartHeight - bottomPadding} L ${points[0]?.x ?? leftPadding} ${chartHeight - bottomPadding} Z`
+    : '';
+  const lowAreaPath = lowLinePath
+    ? `${lowLinePath} L ${points[points.length - 1]?.x ?? leftPadding} ${chartHeight - bottomPadding} L ${points[0]?.x ?? leftPadding} ${chartHeight - bottomPadding} Z`
+    : '';
+
+  return (
+    <section className="mb-8 bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
+      <div className="flex items-end justify-between mb-4">
+        <div>
+          <h2 className="font-black text-slate-900 tracking-tight text-lg">Security Risk Trend</h2>
+          <p className="text-xs text-slate-500 mt-1">Hourly investigation volume by severity over the past 24 hours (open + closed)</p>
+        </div>
+        <div className="flex items-center gap-3 text-[11px] font-semibold">
+          <span className="inline-flex items-center text-slate-600"><i className="w-2.5 h-2.5 rounded-full bg-[#ef4444] mr-1.5" />High</span>
+          <span className="inline-flex items-center text-slate-600"><i className="w-2.5 h-2.5 rounded-full bg-[#facc15] mr-1.5" />Medium</span>
+          <span className="inline-flex items-center text-slate-600"><i className="w-2.5 h-2.5 rounded-full bg-[#22c55e] mr-1.5" />Low</span>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="h-56 flex items-center justify-center text-slate-500 text-sm">
+          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+          Building risk trend...
+        </div>
+      ) : points.length === 0 ? (
+        <div className="h-56 flex items-center justify-center text-slate-500 text-sm">
+          No investigation data available yet.
+        </div>
+      ) : (
+        <div className="relative">
+          <svg
+            viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+            className="w-full h-56 transition-opacity duration-700 opacity-100"
+            onMouseLeave={() => setHoverIndex(null)}
+          >
+            <defs>
+              <linearGradient id="highGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#ef4444" stopOpacity="0.22" />
+                <stop offset="100%" stopColor="#ef4444" stopOpacity="0.02" />
+              </linearGradient>
+              <linearGradient id="mediumGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#facc15" stopOpacity="0.22" />
+                <stop offset="100%" stopColor="#facc15" stopOpacity="0.02" />
+              </linearGradient>
+              <linearGradient id="lowGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#22c55e" stopOpacity="0.22" />
+                <stop offset="100%" stopColor="#22c55e" stopOpacity="0.02" />
+              </linearGradient>
+            </defs>
+
+            {Array.from({ length: 5 }).map((_, index) => {
+              const level = Math.round((maxY / 4) * index);
+              const y = topPadding + ((4 - index) / 4) * innerHeight;
+              return (
+                <g key={`${level}-${index}`}>
+                  <line x1={leftPadding} y1={y} x2={chartWidth - rightPadding} y2={y} stroke="#e2e8f0" strokeWidth="1" />
+                  <text x={8} y={y + 4} className="fill-slate-400 text-[10px] font-semibold">
+                    {level}
+                  </text>
+                </g>
+              );
+            })}
+            <text x={6} y={14} className="fill-slate-500 text-[10px] font-bold">
+              Count
+            </text>
+            <text x={chartWidth - 52} y={chartHeight - 8} className="fill-slate-500 text-[10px] font-bold">
+              Time
+            </text>
+
+            {lowAreaPath && <path d={lowAreaPath} fill="url(#lowGradient)" />}
+            {mediumAreaPath && <path d={mediumAreaPath} fill="url(#mediumGradient)" />}
+            {highAreaPath && <path d={highAreaPath} fill="url(#highGradient)" />}
+
+            {lowLinePath && (
+              <path
+                d={lowLinePath}
+                fill="none"
+                stroke="#22c55e"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeDasharray="1200"
+                strokeDashoffset="1200"
+              >
+                <animate attributeName="stroke-dashoffset" from="1200" to="0" dur="900ms" fill="freeze" />
+              </path>
+            )}
+            {mediumLinePath && (
+              <path
+                d={mediumLinePath}
+                fill="none"
+                stroke="#facc15"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeDasharray="1200"
+                strokeDashoffset="1200"
+              >
+                <animate attributeName="stroke-dashoffset" from="1200" to="0" dur="1s" fill="freeze" />
+              </path>
+            )}
+            {highLinePath && (
+              <path
+                d={highLinePath}
+                fill="none"
+                stroke="#ef4444"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeDasharray="1200"
+                strokeDashoffset="1200"
+              >
+                <animate attributeName="stroke-dashoffset" from="1200" to="0" dur="1100ms" fill="freeze" />
+              </path>
+            )}
+
+            {points.map((point, index) => {
+              const prevX = points[index - 1]?.x ?? leftPadding;
+              const nextX = points[index + 1]?.x ?? (chartWidth - rightPadding);
+              const bandStart = index === 0 ? leftPadding : (prevX + point.x) / 2;
+              const bandEnd = index === points.length - 1 ? chartWidth - rightPadding : (point.x + nextX) / 2;
+              return (
+                <rect
+                  key={`hover-band-${point.timestamp}-${index}`}
+                  x={bandStart}
+                  y={topPadding}
+                  width={Math.max(2, bandEnd - bandStart)}
+                  height={innerHeight}
+                  fill="transparent"
+                  onMouseEnter={() => setHoverIndex(index)}
+                />
+              );
+            })}
+
+            {hoverIndex !== null && points[hoverIndex] && (
+              <line
+                x1={points[hoverIndex].x}
+                y1={topPadding}
+                x2={points[hoverIndex].x}
+                y2={chartHeight - bottomPadding}
+                stroke="#94a3b8"
+                strokeWidth="1"
+                strokeDasharray="3 4"
+              />
+            )}
+
+            {points.map((point, index) => (
+              <g key={`${point.timestamp}-${index}`}>
+                <circle
+                  cx={point.x}
+                  cy={point.yHigh}
+                  r={hoverIndex === index ? 4.5 : 0}
+                  fill="#ef4444"
+                  stroke="#fff"
+                  strokeWidth="1.5"
+                />
+                <circle cx={point.x} cy={point.yMedium} r={hoverIndex === index ? 4.5 : 0} fill="#facc15" stroke="#fff" strokeWidth="1.5" />
+                <circle cx={point.x} cy={point.yLow} r={hoverIndex === index ? 4.5 : 0} fill="#22c55e" stroke="#fff" strokeWidth="1.5" />
+              </g>
+            ))}
+
+            {points.map((point, index) => (
+              index % 3 === 0 || index === points.length - 1 ? (
+                <text key={`x-${point.timestamp}-${index}`} x={point.x} y={chartHeight - 8} textAnchor="middle" className="fill-slate-400 text-[10px] font-semibold">
+                  {formatTrendLabel(point.timestamp)}
+                </text>
+              ) : null
+            ))}
+          </svg>
+
+          {hoverIndex !== null && points[hoverIndex] && (
+            <div className="absolute right-3 top-3 w-72 bg-slate-900 text-slate-100 rounded-2xl p-3 text-xs shadow-2xl border border-slate-700">
+              <p className="font-bold text-[11px]">{formatTrendTooltip(points[hoverIndex].timestamp)}</p>
+              <p className="mt-1 text-slate-300">Investigations: {points[hoverIndex].totalCases}</p>
+              <p className="text-slate-300">
+                High {points[hoverIndex].highCount} | Medium {points[hoverIndex].mediumCount} | Low {points[hoverIndex].lowCount}
+              </p>
+            </div>
+          )}
+
+          {!hasAnyData && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="text-[11px] font-semibold text-slate-400 bg-white/80 px-3 py-1.5 rounded-lg border border-slate-200">
+                No investigations in most of the past 24 hours.
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function buildSmoothPath(points: Array<{ x: number; y: number }>) {
+  if (points.length < 2) return '';
+  let path = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const current = points[i];
+    const next = points[i + 1];
+    const prev = points[i - 1] || current;
+    const nextNext = points[i + 2] || next;
+
+    const cp1x = current.x + (next.x - prev.x) / 6;
+    const cp1y = current.y + (next.y - prev.y) / 6;
+    const cp2x = next.x - (nextNext.x - current.x) / 6;
+    const cp2y = next.y - (nextNext.y - current.y) / 6;
+
+    path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${next.x} ${next.y}`;
+  }
+  return path;
+}
+
+function formatTrendLabel(timestamp: string) {
+  const date = new Date(timestamp);
+  return `${date.getHours().toString().padStart(2, '0')}:00`;
+}
+
+function formatTrendTooltip(timestamp: string) {
+  const date = new Date(timestamp);
+  return `${date.toLocaleDateString()} ${date.getHours().toString().padStart(2, '0')}:00`;
 }
 
 function ChevronRight({ className }: { className?: string }) {

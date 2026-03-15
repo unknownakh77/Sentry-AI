@@ -7,12 +7,51 @@ import { apiFetch } from '@/lib/api';
 
 export default function ThreatIntelPage() {
   const [query, setQuery] = useState('');
-  const [type, setType] = useState<'ip' | 'domain' | 'url' | 'file_hash'>('ip');
+  const [type, setType] = useState<'ip' | 'url' | 'file_hash'>('ip');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ThreatIntelResult | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const isValidIpv4 = (value: string) => {
+    const parts = value.trim().split('.');
+    if (parts.length !== 4) return false;
+    return parts.every((part) => {
+      if (!/^\d+$/.test(part)) return false;
+      const num = Number(part);
+      return num >= 0 && num <= 255;
+    });
+  };
+
+  const isLikelyUrl = (value: string) => /^https?:\/\//i.test(value.trim());
 
   const handleLookup = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage('');
+
+    if (type === 'ip') {
+      if (isLikelyUrl(query)) {
+        setErrorMessage('This looks like a URL. Please select the URL field.');
+        return;
+      }
+      if (!isValidIpv4(query)) {
+        setErrorMessage('Please enter a valid IPv4 address for IP lookup.');
+        return;
+      }
+    }
+
+    if (type === 'url') {
+      try {
+        const parsed = new URL(query.trim());
+        if (!['http:', 'https:'].includes(parsed.protocol)) {
+          setErrorMessage('Please enter a valid URL with http:// or https://');
+          return;
+        }
+      } catch {
+        setErrorMessage('Please enter a valid URL and use the URL field.');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const data = await apiFetch<{ result: ThreatIntelResult }>('/api/cases/threat-intel/lookup', {
@@ -23,6 +62,7 @@ export default function ThreatIntelPage() {
       setResult(data.result);
     } catch (err) {
       console.error(err);
+      setErrorMessage('Lookup failed. Please verify the indicator format and try again.');
     } finally {
       setLoading(false);
     }
@@ -49,7 +89,7 @@ export default function ThreatIntelPage() {
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Indicator Type</label>
                 <div className="grid grid-cols-2 gap-2">
-                  {['ip', 'domain', 'url', 'file_hash'].map((t) => (
+                  {['ip', 'url', 'file_hash'].map((t) => (
                     <button
                       key={t}
                       type="button"
@@ -70,12 +110,18 @@ export default function ThreatIntelPage() {
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Indicator Value</label>
                 <input 
                   type="text"
-                  placeholder={type === 'ip' ? 'e.g. 1.1.1.1' : type === 'domain' ? 'e.g. google.com' : 'Enter value...'}
+                  placeholder={type === 'ip' ? 'e.g. 1.1.1.1' : type === 'url' ? 'e.g. https://example.com' : 'Enter hash...'}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
                 />
               </div>
+
+              {errorMessage && (
+                <div className="text-xs font-semibold text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
+                  {errorMessage}
+                </div>
+              )}
 
               <button 
                 type="submit"
