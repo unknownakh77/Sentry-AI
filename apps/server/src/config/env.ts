@@ -4,12 +4,6 @@ const parsePort = (value: string | undefined) => {
 };
 
 export const env = {
-  get backboardApiKey() {
-    return process.env.BACKBOARD_API_KEY;
-  },
-  get elevenLabsApiKey() {
-    return process.env.ELEVENLABS_API_KEY;
-  },
   get ipInfoToken() {
     return process.env.IPINFO_TOKEN;
   },

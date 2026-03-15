@@ -14,8 +14,7 @@ import casesRouter from './routes/cases';
 const app = express();
 const PORT = env.port;
 
-console.log('BACKBOARD_API_KEY:', process.env.BACKBOARD_API_KEY);
-console.log(`[INIT] Environment loaded. Backboard Key: ${env.backboardApiKey ? 'Present' : 'MISSING'}`);
+console.log(`[INIT] Environment loaded. OpenAI Key: ${process.env.OPENAI_API_KEY ? 'Present' : 'MISSING'}`);
 
 app.use(cors());
 app.use(express.json());

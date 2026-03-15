@@ -1,5 +1,8 @@
-import { askBackboard } from './backboard';
+import OpenAI from 'openai';
 import { NormalizedEvent } from '@sentry/shared';
+
+// Singleton client — instantiated once, reused across all calls
+const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export interface PlannerCheck {
   tool: string;
@@ -38,12 +41,27 @@ export interface OverrideReflection {
   proposedAdaptiveRule?: AdaptiveRule | null;
 }
 
-function stripMarkdown(text: string): string {
-  return text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+async function callOpenAI(systemPrompt: string, userPrompt: string, maxTokens = 400): Promise<string> {
+  const completion = await client.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    temperature: 0.3,
+    max_tokens: maxTokens,
+  });
+  return completion.choices[0]?.message?.content ?? '';
+}
+
+function parseJSON<T>(text: string): T {
+  const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+  return JSON.parse(cleaned) as T;
 }
 
 export async function planInvestigation(event: NormalizedEvent): Promise<PlannerOutput> {
-  const prompt = `You are a SOC investigation planner. Given this security event, decide which tools to run.
+  const system = 'You are a SOC investigation planner. Respond ONLY with valid JSON, no markdown.';
+  const user = `Given this security event, decide which tools to run.
 
 Event Type: ${event.eventType}
 Source IP: ${event.sourceIp || 'N/A'}
@@ -62,7 +80,7 @@ Available tools:
 - file_hash_lookup: Lookup file hash in VirusTotal for malware detection
 - behavior_analysis: Detect impossible travel, unusual hours, new locations
 
-Respond ONLY with valid JSON, no markdown:
+Respond ONLY with valid JSON:
 {
   "eventType": "${event.eventType}",
   "checks": [
@@ -72,10 +90,10 @@ Respond ONLY with valid JSON, no markdown:
 }`;
 
   try {
-    const response = await askBackboard(prompt, 'You are a SOC investigation planner. Respond ONLY with valid JSON, no markdown, no explanation.');
-    const parsed = JSON.parse(stripMarkdown(response));
+    const response = await callOpenAI(system, user);
+    const parsed = parseJSON<PlannerOutput>(response);
     if (!parsed.eventType || !Array.isArray(parsed.checks)) throw new Error('Invalid structure');
-    return parsed as PlannerOutput;
+    return parsed;
   } catch (err) {
     console.warn('[AI] planInvestigation fallback:', err);
     return getFallbackPlan(event);
@@ -120,7 +138,7 @@ function getFallbackPlan(event: NormalizedEvent): PlannerOutput {
       reasoning: 'File hash events require direct lookup against antivirus and malware intelligence databases.',
     },
   };
-  return plans[event.eventType] || plans['login'];
+  return plans[event.eventType] ?? plans['login'];
 }
 
 export async function generateCaseExplanation(caseRecord: {
@@ -131,7 +149,8 @@ export async function generateCaseExplanation(caseRecord: {
   evidenceList: string[];
   plannerOutput?: PlannerOutput;
 }): Promise<CaseExplanation> {
-  const prompt = `You are a senior SOC analyst explaining a security investigation to a Tier-1 analyst.
+  const system = 'You are a senior SOC analyst. Respond ONLY with valid JSON, no markdown.';
+  const user = `Explain this security investigation to a Tier-1 analyst.
 
 Case Details:
 - Event Type: ${caseRecord.eventType}
@@ -141,24 +160,24 @@ Case Details:
 - Evidence Detected: ${caseRecord.evidenceList.join('; ') || 'None'}
 - Investigation Checks: ${caseRecord.plannerOutput?.checks?.map(c => c.tool).join(', ') || 'standard checks'}
 
-Respond ONLY with valid JSON, no markdown:
+Respond ONLY with valid JSON:
 {
-  "whySuspicious": "2-3 sentence explanation of why this case is suspicious based on the specific evidence",
+  "whySuspicious": "2-3 sentence explanation based on the specific evidence",
   "keyEvidence": ["most critical evidence item", "second most critical", "third most critical"],
   "recommendedAction": "specific concrete action the analyst should take right now",
   "nextSteps": ["concrete step 1", "concrete step 2", "concrete step 3"],
   "escalationAdvised": true or false,
-  "escalationReason": "why escalation is needed (only include if escalationAdvised is true, otherwise omit)",
+  "escalationReason": "why escalation is needed (omit if escalationAdvised is false)",
   "analystSummary": "one clear sentence summary for the analyst handoff note"
 }
 
 Base all reasoning strictly on the evidence provided. Do not hallucinate signals.`;
 
   try {
-    const response = await askBackboard(prompt, 'You are a senior SOC analyst. Respond ONLY with valid JSON, no markdown.');
-    const parsed = JSON.parse(stripMarkdown(response));
+    const response = await callOpenAI(system, user);
+    const parsed = parseJSON<CaseExplanation>(response);
     if (!parsed.whySuspicious || !Array.isArray(parsed.keyEvidence)) throw new Error('Invalid structure');
-    return parsed as CaseExplanation;
+    return parsed;
   } catch (err) {
     console.warn('[AI] generateCaseExplanation fallback:', err);
     const evidence = caseRecord.evidenceList.slice(0, 3);
@@ -201,12 +220,11 @@ export async function answerCaseQuestion(
     .join('\n') || '  - No evidence recorded';
 
   const explanationSection = caseRecord.aiExplanation
-    ? `Why suspicious: ${caseRecord.aiExplanation.whySuspicious}
-Key evidence: ${caseRecord.aiExplanation.keyEvidence?.join(', ')}
-Escalation: ${caseRecord.aiExplanation.escalationAdvised ? 'Yes — ' + caseRecord.aiExplanation.escalationReason : 'Not required'}`
-    : '  Not available';
+    ? `Why suspicious: ${caseRecord.aiExplanation.whySuspicious}\nKey evidence: ${caseRecord.aiExplanation.keyEvidence?.join(', ')}\nEscalation: ${caseRecord.aiExplanation.escalationAdvised ? 'Yes — ' + caseRecord.aiExplanation.escalationReason : 'Not required'}`
+    : 'Not available';
 
-  const prompt = `You are Sentry AI, a case-aware SOC investigation assistant. Answer the analyst's question using ONLY the case evidence provided below.
+  const system = 'You are Sentry AI, a case-aware SOC investigation assistant. Be concise, grounded, analyst-friendly. Never hallucinate evidence.';
+  const user = `Answer the analyst's question using ONLY the case evidence provided below.
 
 === CASE CONTEXT ===
 Case ID: ${caseRecord.caseId?.slice(0, 8) || 'N/A'}
@@ -229,10 +247,10 @@ ${recentHistory ? `Recent Conversation:\n${recentHistory}` : ''}
 === ANALYST QUESTION ===
 ${question}
 
-Respond concisely and directly in 2-4 sentences. Reference only evidence that exists above. If you lack enough information, say so clearly.`;
+Respond concisely in 2-4 sentences. Reference only evidence that exists above. If you lack enough information, say so clearly.`;
 
   try {
-    return await askBackboard(prompt, 'You are Sentry AI. Be concise, grounded, analyst-friendly. Never hallucinate evidence.');
+    return await callOpenAI(system, user, 200);
   } catch (err) {
     console.warn('[AI] answerCaseQuestion fallback:', err);
     return `Based on the case evidence: this ${caseRecord.eventType} scored ${caseRecord.riskScore}/100 (${caseRecord.classification}). ${(caseRecord.evidenceList || []).slice(0, 2).join(' and ')}. Automated action: ${caseRecord.action}.`;
@@ -251,14 +269,15 @@ export async function reflectOnOverride(
       ).join('\n')
     : '  - No recent overrides in history';
 
-  const prompt = `You are Sentry AI reflecting on an analyst override of your automated decision.
+  const system = 'You are Sentry AI reflecting on analyst feedback. Respond ONLY with valid JSON, no markdown.';
+  const user = `Reflect on this analyst override of an automated security decision.
 
 === ORIGINAL CASE ===
 Event Type: ${caseRecord.eventType}
 Risk Score: ${caseRecord.riskScore}/100
 Classification: ${caseRecord.classification}
 Original Action: ${caseRecord.action}
-Evidence that drove my decision:
+Evidence:
 ${(caseRecord.evidenceList || []).map((e: string) => `  - ${e}`).join('\n') || '  - None recorded'}
 
 === ANALYST OVERRIDE ===
@@ -268,7 +287,7 @@ Analyst Reason: "${overrideReason}"
 === RECENT OVERRIDE HISTORY ===
 ${overrideHistory}
 
-Respond ONLY with valid JSON, no markdown:
+Respond ONLY with valid JSON:
 {
   "originalDecisionRationale": "which specific signals drove the original automated decision",
   "keySignals": ["signal 1", "signal 2", "signal 3"],
@@ -286,10 +305,10 @@ Respond ONLY with valid JSON, no markdown:
 Only include proposedAdaptiveRule if the override reveals a clear pattern. Set it to null if it is a one-off override.`;
 
   try {
-    const response = await askBackboard(prompt, 'You are Sentry AI reflecting on analyst feedback. Respond ONLY with valid JSON, no markdown.');
-    const parsed = JSON.parse(stripMarkdown(response));
+    const response = await callOpenAI(system, user);
+    const parsed = parseJSON<OverrideReflection>(response);
     if (!parsed.originalDecisionRationale || !Array.isArray(parsed.keySignals)) throw new Error('Invalid structure');
-    return parsed as OverrideReflection;
+    return parsed;
   } catch (err) {
     console.warn('[AI] reflectOnOverride fallback:', err);
     return {

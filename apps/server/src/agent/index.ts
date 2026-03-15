@@ -53,11 +53,10 @@ const graphStateChannels: any = {
   }
 };
 
-// Node 1: Planner
+// Node 1: Planner — deterministic only, no AI call here
 const plannerNode = async (state: AgentState): Promise<Partial<AgentState>> => {
   const type = state.event.eventType;
 
-  // Deterministic tool list for the downstream pipeline
   let plan = { tools: [] as string[], reasoning: '' };
   if (type === 'login') {
     plan = { tools: ['ip_intel', 'geo_intel', 'vpn_intel', 'login_history'], reasoning: 'Login attempt detected. Need to verify IP reputation, location identity, and recent history to rule out account takeover.' };
@@ -67,11 +66,7 @@ const plannerNode = async (state: AgentState): Promise<Partial<AgentState>> => {
     plan = { tools: ['domain_intel'], reasoning: 'URL clicked. Checking domain and URL reputation.' };
   }
 
-  // AI-generated structured planner output (visible to analyst)
-  const plannerOutput = await planInvestigation(state.event);
-
-  recordTool(state, 'investigation_planner', `AI planner determined ${plannerOutput.checks.length} checks: ${plannerOutput.checks.map(c => c.tool).join(', ')}`);
-  return { plan, plannerOutput, tool_calls: state.tool_calls };
+  return { plan, tool_calls: state.tool_calls };
 };
 
 // Node 3: Behavior
@@ -282,32 +277,28 @@ const decisionNode = async (state: AgentState): Promise<Partial<AgentState>> => 
     ? 'Privileged account context increases business impact if this session is malicious.'
     : 'Non-privileged account context lowers immediate blast radius but still warrants containment if compromise is likely.';
 
-    // Generate AI guidance using real LLM
-    const prompt = `Analyze this security event and provide a structured guidance.
-    Event Type: ${state.event.eventType}
-    Risk Score: ${score}
-    Evidence: ${evidence.join(', ')}
-    Classification: ${classification}
-    
-    Provide the response in JSON format with:
-    {
-      "summary": "one sentence summary of the threat",
-      "containmentSteps": ["step 1", "step 2"],
-      "escalationAdvice": "specific advice on who to notify"
-    }`;
+  // Run both AI calls concurrently — saves ~1-2s vs sequential
+  const [plannerOutput, aiExplanation] = await Promise.all([
+    planInvestigation(state.event),
+    generateCaseExplanation({
+      eventType: state.event.eventType,
+      riskScore: score,
+      classification,
+      action,
+      evidenceList: evidence,
+    }),
+  ]);
 
-    let guidance;
-    try {
-      const llmResponse = await askBackboard(prompt, "You are a professional SOC Analyst assistant. Respond ONLY with valid JSON.");
-      guidance = JSON.parse(llmResponse);
-    } catch (err) {
-      console.warn('Backboard failed, using fallback guidance');
-      guidance = {
-        summary: `Possible ${state.event.eventType} detected with ${classification} risk.`,
-        containmentSteps: ['Monitor session', 'Flag account'],
-        escalationAdvice: 'Standard observation.'
-      };
-    }
+  recordTool(state, 'investigation_planner', `AI planner determined ${plannerOutput.checks.length} checks: ${plannerOutput.checks.map(c => c.tool).join(', ')}`);
+
+  // Derive guidance from aiExplanation — no extra OpenAI call needed
+  let guidance: any = {
+    summary: aiExplanation.analystSummary,
+    containmentSteps: aiExplanation.nextSteps,
+    escalationAdvice: aiExplanation.escalationAdvised
+      ? (aiExplanation.escalationReason || 'Escalate to Tier-2 analyst.')
+      : 'No escalation required at this time.',
+  };
 
   guidance = {
     ...guidance,
@@ -355,17 +346,7 @@ const decisionNode = async (state: AgentState): Promise<Partial<AgentState>> => 
     },
   };
 
-  // AI case explanation (grounded analyst guidance)
-  const aiExplanation = await generateCaseExplanation({
-    eventType: state.event.eventType,
-    riskScore: score,
-    classification,
-    action,
-    evidenceList: evidence,
-    plannerOutput: state.plannerOutput || undefined,
-  });
-
-  return { risk_score: score, risk_level: classification, action, evidence_list: evidence, guidance, aiExplanation };
+  return { risk_score: score, risk_level: classification, action, evidence_list: evidence, guidance, plannerOutput, aiExplanation };
 };
 
 // Node 9: Persist
