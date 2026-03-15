@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  ArrowLeft, CheckCircle2, Headphones, MessageSquare, RefreshCw, Send,
+  ArrowLeft, CheckCircle2, MessageSquare, RefreshCw, Send,
   AlertTriangle, Brain, Shield, ListChecks, RotateCcw, TrendingUp, Lightbulb, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { CaseRecord, ChatMessage, ToolCall } from '@sentry/shared';
@@ -84,8 +84,6 @@ export default function CaseDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [caseData, setCaseData] = useState<CaseDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [briefingLoading, setBriefingLoading] = useState(false);
-
   // Chat
   const [chatMessage, setChatMessage] = useState('');
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
@@ -127,16 +125,6 @@ export default function CaseDetailPage() {
     if (chatScrollRef.current) chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
   }, [chatHistory]);
 
-  const handlePlayBrief = async () => {
-    try {
-      setBriefingLoading(true);
-      const response = await fetch(apiUrl(`/api/cases/${id}/brief`), { method: 'POST' });
-      if (!response.ok) throw new Error('Voice brief failed.');
-      const blob = await response.blob();
-      new Audio(URL.createObjectURL(blob)).play();
-    } catch (err) { console.error(err); }
-    finally { setBriefingLoading(false); }
-  };
 
   const handleSendMessage = async (event: React.FormEvent, prefill?: string) => {
     event.preventDefault();
@@ -228,11 +216,6 @@ export default function CaseDetailPage() {
               <CheckCircle2 className="w-4 h-4 mr-2" /> View Report
             </Link>
           )}
-          <button onClick={handlePlayBrief} disabled={briefingLoading}
-            className="flex items-center px-4 py-2.5 rounded-xl font-bold text-sm bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-50 shadow-sm">
-            {briefingLoading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Headphones className="w-4 h-4 mr-2" />}
-            AI Brief
-          </button>
         </div>
       </div>
 

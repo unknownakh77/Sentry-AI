@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { RefreshCw, Play } from 'lucide-react';
 import { CaseRecord } from '@sentry/shared';
-import Link from 'next/link';
 import { EventIcon, RiskBadge, formatActionLabel, formatCaseAge, formatEventTypeLabel } from '@/components/cases/presenters';
 import { apiFetch, apiUrl } from '@/lib/api';
 
@@ -84,24 +83,6 @@ export default function DashboardPage() {
           </div>
           <h1 className="ui-title text-4xl">SOC Dashboard</h1>
           <p className="ui-subtitle mt-2">Real-time fraud surveillance and autonomous triage hub</p>
-        </div>
-        <div className="flex items-center space-x-3">
-           <Link href="/investigations" className="text-sm font-bold transition-colors uppercase tracking-widest mr-4" style={{ color: 'var(--text-3)' }}
-             onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-1)'}
-             onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-3)'}
-           >
-             Archive &rarr;
-           </Link>
-          <button 
-            onClick={() => {
-              void fetchCases();
-              void fetchRiskTrend();
-            }} 
-            className="ui-btn-secondary px-5"
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin text-blue-500' : ''}`} />
-            Sync Hub
-          </button>
         </div>
       </div>
 

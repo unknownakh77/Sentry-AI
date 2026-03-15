@@ -39,7 +39,7 @@ export default function RootLayout({
     }
   }, [sidebarCollapsed]);
 
-  const isLanding = pathname === '/landing';
+  const isLanding = pathname === '/landing' || pathname === '/core-functionalities';
 
   return (
     <html lang="en">
