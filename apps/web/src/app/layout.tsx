@@ -2,7 +2,7 @@
 
 import './globals.css';
 import { useEffect, useState } from 'react';
-import { LayoutDashboard, History, Search, FileCheck, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, History, Search, FileCheck, ChevronLeft, ChevronRight, Home } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -39,11 +39,13 @@ export default function RootLayout({
     }
   }, [sidebarCollapsed]);
 
+  const isLanding = pathname === '/landing';
+
   return (
     <html lang="en">
-      <body className="flex h-screen overflow-hidden font-sans antialiased">
-        {/* Sidebar */}
-        <aside
+      <body className={`font-sans antialiased ${isLanding ? 'min-h-screen' : 'flex h-screen overflow-hidden'}`}>
+        {/* Sidebar — hidden on landing page */}
+        {!isLanding && <aside
           className={`bg-[#0a1221] text-slate-400 flex flex-col border-r border-slate-800/70 shadow-2xl z-20 overflow-hidden transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             sidebarCollapsed ? 'w-20' : 'w-72'
           }`}
@@ -106,7 +108,25 @@ export default function RootLayout({
             })}
           </nav>
 
-          <div className={`p-4 border-t border-slate-800/70 ${sidebarCollapsed ? 'px-2.5 pt-3' : 'px-4'}`}>
+          <div className={`p-4 border-t border-slate-800/70 ${sidebarCollapsed ? 'px-2.5 pt-3' : 'px-4'} space-y-2`}>
+            {/* Back to landing */}
+            <Link
+              href="/landing"
+              className={`flex items-center rounded-xl transition-all duration-300 group text-slate-500 hover:text-slate-200 hover:bg-slate-800/70 ${
+                sidebarCollapsed ? 'justify-center h-10 w-10 mx-auto' : 'space-x-3 px-4 py-2.5'
+              }`}
+              title="Home"
+            >
+              <Home className="w-[16px] h-[16px] shrink-0 group-hover:text-slate-200" />
+              <span
+                className={`text-xs font-semibold whitespace-nowrap overflow-hidden transition-all duration-300 ${
+                  sidebarCollapsed ? 'max-w-0 opacity-0' : 'max-w-[160px] opacity-100'
+                }`}
+              >
+                Home
+              </span>
+            </Link>
+
             <div
               className={`bg-slate-800/45 rounded-xl border border-slate-700/50 transition-all duration-300 ${
                 sidebarCollapsed ? 'h-12 w-12 mx-auto flex items-center justify-center' : 'p-4 flex items-center space-x-3'
@@ -123,15 +143,19 @@ export default function RootLayout({
               </div>
             </div>
           </div>
-        </aside>
+        </aside>}
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto scroll-smooth relative">
-           <div className="absolute top-0 left-0 w-full h-[300px] pointer-events-none" style={{ background: 'linear-gradient(to bottom, rgba(68,136,245,0.05), transparent)' }} />
-           <div key={pathname} className="relative z-10 page-transition">
-             {children}
-           </div>
-        </main>
+        {isLanding ? (
+          <>{children}</>
+        ) : (
+          <main className="flex-1 overflow-y-auto scroll-smooth relative">
+            <div className="absolute top-0 left-0 w-full h-[300px] pointer-events-none" style={{ background: 'linear-gradient(to bottom, rgba(68,136,245,0.05), transparent)' }} />
+            <div key={pathname} className="relative z-10 page-transition">
+              {children}
+            </div>
+          </main>
+        )}
       </body>
     </html>
   );
@@ -158,7 +182,7 @@ function SentryLogo() {
         <path d="M43 83c7 8 35 8 42 0" fill="none" stroke="#1f95ff" strokeWidth="4" />
       </svg>
       <div className="overflow-hidden">
-        <div className="text-white font-extrabold text-[28px] leading-none tracking-tight whitespace-nowrap">Sentry</div>
+        <div className="text-white font-extrabold text-[28px] leading-none tracking-tight whitespace-nowrap">Sentry <span style={{ color: '#4488f5' }}>AI</span></div>
       </div>
     </div>
   );
