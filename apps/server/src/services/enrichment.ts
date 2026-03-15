@@ -187,17 +187,49 @@ export async function getVirusTotalUrl(url: string) {
   }
 
   try {
+    // Step 1: try GET with the cached URL report first
     const urlId = toVirusTotalUrlId(url);
-    const res = await fetchWithTimeout(`https://www.virustotal.com/api/v3/urls/${urlId}`, {
+    const getRes = await fetchWithTimeout(`https://www.virustotal.com/api/v3/urls/${urlId}`, {
       headers: { 'x-apikey': env.virusTotalApiKey || '' }
     });
-    const data = await res.json();
-    if (!data?.data?.attributes?.last_analysis_stats) {
-      console.warn(`vt url response missing stats for ${url}, using fixture.`);
+    const getData = await getRes.json();
+    if (getData?.data?.attributes?.last_analysis_stats) {
+      setCache(cacheKey, getData);
+      return getData;
+    }
+
+    // Step 2: URL not previously scanned — submit it for analysis
+    const body = new URLSearchParams({ url });
+    const submitRes = await fetchWithTimeout('https://www.virustotal.com/api/v3/urls', {
+      method: 'POST',
+      headers: {
+        'x-apikey': env.virusTotalApiKey || '',
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: body.toString(),
+    });
+    const submitData = await submitRes.json();
+    const analysisId = submitData?.data?.id;
+    if (!analysisId) {
+      console.warn(`vt url submit returned no analysis id for ${url}, using fixture.`);
       return FIXTURES.vtUrl(url);
     }
-    setCache(cacheKey, data);
-    return data;
+
+    // Step 3: fetch the analysis result
+    const analysisRes = await fetchWithTimeout(`https://www.virustotal.com/api/v3/analyses/${analysisId}`, {
+      headers: { 'x-apikey': env.virusTotalApiKey || '' }
+    });
+    const analysisData = await analysisRes.json();
+    const stats = analysisData?.data?.attributes?.stats;
+    if (!stats) {
+      console.warn(`vt url analysis missing stats for ${url}, using fixture.`);
+      return FIXTURES.vtUrl(url);
+    }
+
+    // Normalise to the same shape as a URL report
+    const normalised = { data: { attributes: { last_analysis_stats: stats } } };
+    setCache(cacheKey, normalised);
+    return normalised;
   } catch (err) {
     console.warn(`vt url fetch failed for ${url}, using fixture.`);
     return FIXTURES.vtUrl(url);
