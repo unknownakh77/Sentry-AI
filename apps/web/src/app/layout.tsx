@@ -127,7 +127,7 @@ export default function RootLayout({
 
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto scroll-smooth relative">
-           <div className="absolute top-0 left-0 w-full h-[300px] bg-gradient-to-b from-blue-100/40 to-transparent pointer-events-none" />
+           <div className="absolute top-0 left-0 w-full h-[300px] pointer-events-none" style={{ background: 'linear-gradient(to bottom, rgba(68,136,245,0.05), transparent)' }} />
            <div key={pathname} className="relative z-10 page-transition">
              {children}
            </div>

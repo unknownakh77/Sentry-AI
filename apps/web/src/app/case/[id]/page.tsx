@@ -287,19 +287,16 @@ export default function CaseDetailPage() {
                 ))}
               </ul>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs font-black text-slate-400 uppercase tracking-wider mb-1">Recommended Action</p>
-                <p className="text-sm font-semibold text-slate-800">{caseData.aiExplanation.recommendedAction}</p>
-              </div>
-              <div>
-                <p className="text-xs font-black text-slate-400 uppercase tracking-wider mb-1">Next Steps</p>
-                <ol className="space-y-0.5 list-decimal list-inside">
-                  {caseData.aiExplanation.nextSteps.map((s, i) => (
-                    <li key={i} className="text-sm text-slate-700">{s}</li>
-                  ))}
-                </ol>
-              </div>
+            <div
+              className="rounded-xl px-4 py-4"
+              style={{ background: 'rgba(68,136,245,0.08)', borderLeft: '3px solid #4488f5' }}
+            >
+              <p className="text-[10px] font-black uppercase tracking-widest mb-2" style={{ color: '#4488f5' }}>
+                Recommended Action
+              </p>
+              <p className="text-sm font-bold leading-snug" style={{ color: 'var(--text-1)' }}>
+                {caseData.aiExplanation.recommendedAction}
+              </p>
             </div>
             {caseData.aiExplanation.escalationAdvised && (
               <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">

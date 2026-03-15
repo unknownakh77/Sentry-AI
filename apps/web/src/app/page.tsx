@@ -78,15 +78,18 @@ export default function DashboardPage() {
     <div className="p-8 max-w-7xl mx-auto w-full">
       <div className="flex justify-between items-end mb-10">
         <div>
-          <div className="flex items-center space-x-2 text-blue-700 font-bold text-xs uppercase tracking-[0.3em] mb-2">
-            <div className="w-8 h-1 bg-blue-700 rounded-full" />
+          <div className="flex items-center space-x-2 font-bold text-xs uppercase tracking-[0.3em] mb-2" style={{ color: 'var(--brand)' }}>
+            <div className="w-8 h-0.5 rounded-full" style={{ background: 'var(--brand)' }} />
             <span>Mission Control</span>
           </div>
           <h1 className="ui-title text-4xl">SOC Dashboard</h1>
           <p className="ui-subtitle mt-2">Real-time fraud surveillance and autonomous triage hub</p>
         </div>
         <div className="flex items-center space-x-3">
-           <Link href="/investigations" className="text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors uppercase tracking-widest mr-4">
+           <Link href="/investigations" className="text-sm font-bold transition-colors uppercase tracking-widest mr-4" style={{ color: 'var(--text-3)' }}
+             onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-1)'}
+             onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-3)'}
+           >
              Archive &rarr;
            </Link>
           <button 
@@ -108,13 +111,13 @@ export default function DashboardPage() {
         {/* Main Table Area */}
         <div className="col-span-12 lg:col-span-8">
           <div className="ui-card-elevated overflow-hidden">
-            <div className="px-8 py-5 border-b border-slate-100 bg-slate-50/70 flex justify-between items-center">
-              <h2 className="font-black text-slate-900 uppercase tracking-widest text-xs">Priority Investigations</h2>
-              <span className="text-[10px] font-bold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded uppercase">TOP 5 ACTIVE</span>
+            <div className="px-8 py-5 flex justify-between items-center" style={{ borderBottom: '1px solid var(--border-soft)', background: 'rgba(0,0,0,0.15)' }}>
+              <h2 className="font-black uppercase tracking-widest text-xs" style={{ color: 'var(--text-1)' }}>Priority Investigations</h2>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase" style={{ color: 'var(--text-3)', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-soft)' }}>TOP 5 ACTIVE</span>
             </div>
             <div className="overflow-x-auto">
               {cases.length === 0 && !loading ? (
-                <div className="p-16 text-center text-slate-500 font-medium">No active investigations. Run a scenario to begin triage.</div>
+                <div className="p-16 text-center font-medium text-sm" style={{ color: 'var(--text-3)' }}>No active investigations. Run a scenario to begin triage.</div>
               ) : (
                 <table className="ui-table w-full text-left text-sm">
                   <thead>
@@ -134,7 +137,7 @@ export default function DashboardPage() {
                       >
                         <td className="px-8 py-5">
                           <div className="flex items-center space-x-4">
-                            <div className="p-2.5 bg-slate-50 rounded-xl group-hover:bg-white transition-colors border border-transparent group-hover:border-blue-100">
+                            <div className="p-2.5 rounded-xl transition-colors" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-soft)' }}>
                               <EventIcon type={c.eventType} />
                             </div>
                             <div>
@@ -154,7 +157,7 @@ export default function DashboardPage() {
                         </td>
                         <td className="px-8 py-5 text-right">
                           <div className="flex items-center justify-end space-x-3">
-                            <span className="inline-flex items-center text-[10px] font-black text-slate-700 bg-slate-100 px-2 py-0.5 rounded-lg uppercase tracking-wider border border-slate-200">
+                            <span className="inline-flex items-center text-[10px] font-black px-2 py-0.5 rounded-lg uppercase tracking-wider" style={{ color: 'var(--text-2)', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-soft)' }}>
                               {formatActionLabel(c.action)}
                             </span>
                             <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 transition-colors" />
@@ -171,7 +174,7 @@ export default function DashboardPage() {
 
         {/* Demo Controller Sidebar */}
         <div className="col-span-12 lg:col-span-4">
-          <div className="bg-[#0b162a] rounded-3xl p-8 shadow-2xl relative overflow-hidden border border-slate-800">
+          <div className="rounded-3xl p-8 shadow-2xl relative overflow-hidden" style={{ background: '#0a1421', border: '1px solid rgba(255,255,255,0.07)', boxShadow: '0 16px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
             <div className="absolute top-0 right-0 p-4 opacity-10">
               <Play className="w-20 h-20 text-blue-500" />
             </div>
@@ -181,27 +184,28 @@ export default function DashboardPage() {
             <p className="text-xs text-slate-400 mb-8 font-medium">Inject synthetic high-fidelity audit events</p>
             
             <div className="space-y-4 relative z-10">
-              <ScenarioButton 
-                label="Safe Login" desc="Standard office session" 
-                onClick={() => simulateScenario('safe_login')}
-                loading={simulating === 'safe_login'}
+              <ScenarioButton
+                label="Login" desc="Normal, VPN, impossible travel, or Tor"
+                onClick={() => simulateScenario('login')}
+                loading={simulating === 'login'}
               />
-              <ScenarioButton 
-                label="Malicious Login" desc="VPN based ATO attempt" 
-                onClick={() => simulateScenario('malicious_login')}
-                loading={simulating === 'malicious_login'}
-                variant="danger"
-              />
-              <ScenarioButton 
-                label="Targeted Phishing" desc="Email auth failure" 
+              <ScenarioButton
+                label="Phishing Email" desc="Spam, spoofed sender, or spear phish"
                 onClick={() => simulateScenario('phishing_email')}
                 loading={simulating === 'phishing_email'}
                 variant="warning"
               />
-              <ScenarioButton 
-                label="Suspicious Link" desc="Redirect to bad domain" 
-                onClick={() => simulateScenario('url_click')}
-                loading={simulating === 'url_click'}
+              <ScenarioButton
+                label="Suspicious Link" desc="Shortener, typosquat, or C2 redirect"
+                onClick={() => simulateScenario('suspicious_link')}
+                loading={simulating === 'suspicious_link'}
+                variant="warning"
+              />
+              <ScenarioButton
+                label="Fraudulent Transaction" desc="Abnormal amount, new region, or ATO"
+                onClick={() => simulateScenario('fraudulent_transaction')}
+                loading={simulating === 'fraudulent_transaction'}
+                variant="danger"
               />
             </div>
           </div>
@@ -211,16 +215,23 @@ export default function DashboardPage() {
   );
 }
 
+// Chart palette — used throughout the chart component
+const CHART_COLORS = {
+  high:   { line: '#e05555', area: 'rgba(224,85,85,',   dot: '#e05555' },
+  medium: { line: '#d4922a', area: 'rgba(212,146,42,',  dot: '#d4922a' },
+  low:    { line: '#22b59c', area: 'rgba(34,181,156,',  dot: '#22b59c' },
+} as const;
+
 function SecurityRiskTrendCard({ trend, loading }: { trend: RiskTrendPoint[]; loading: boolean }) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
-  const chartHeight = 220;
-  const chartWidth = 1000;
-  const topPadding = 18;
-  const bottomPadding = 34;
-  const leftPadding = 40;
-  const rightPadding = 20;
+  const chartHeight = 230;
+  const chartWidth  = 1000;
+  const topPadding    = 20;
+  const bottomPadding = 38;
+  const leftPadding   = 44;
+  const rightPadding  = 20;
   const innerHeight = chartHeight - topPadding - bottomPadding;
-  const innerWidth = chartWidth - leftPadding - rightPadding;
+  const innerWidth  = chartWidth  - leftPadding - rightPadding;
   const maxY = Math.max(
     1,
     ...trend.map((item) => Math.max(item.highCount, item.mediumCount, item.lowCount))
@@ -232,205 +243,248 @@ function SecurityRiskTrendCard({ trend, loading }: { trend: RiskTrendPoint[]; lo
     const toY = (value: number) => topPadding + ((maxY - value) / maxY) * innerHeight;
     return {
       x,
-      yHigh: toY(item.highCount),
+      yHigh:   toY(item.highCount),
       yMedium: toY(item.mediumCount),
-      yLow: toY(item.lowCount),
+      yLow:    toY(item.lowCount),
       ...item,
     };
   });
 
-  const highLinePath = buildSmoothPath(points.map((point) => ({ x: point.x, y: point.yHigh })));
-  const mediumLinePath = buildSmoothPath(points.map((point) => ({ x: point.x, y: point.yMedium })));
-  const lowLinePath = buildSmoothPath(points.map((point) => ({ x: point.x, y: point.yLow })));
-  const highAreaPath = highLinePath
-    ? `${highLinePath} L ${points[points.length - 1]?.x ?? leftPadding} ${chartHeight - bottomPadding} L ${points[0]?.x ?? leftPadding} ${chartHeight - bottomPadding} Z`
-    : '';
-  const mediumAreaPath = mediumLinePath
-    ? `${mediumLinePath} L ${points[points.length - 1]?.x ?? leftPadding} ${chartHeight - bottomPadding} L ${points[0]?.x ?? leftPadding} ${chartHeight - bottomPadding} Z`
-    : '';
-  const lowAreaPath = lowLinePath
-    ? `${lowLinePath} L ${points[points.length - 1]?.x ?? leftPadding} ${chartHeight - bottomPadding} L ${points[0]?.x ?? leftPadding} ${chartHeight - bottomPadding} Z`
-    : '';
+  const highLinePath   = buildSmoothPath(points.map((p) => ({ x: p.x, y: p.yHigh   })));
+  const mediumLinePath = buildSmoothPath(points.map((p) => ({ x: p.x, y: p.yMedium })));
+  const lowLinePath    = buildSmoothPath(points.map((p) => ({ x: p.x, y: p.yLow    })));
+
+  const baselineY = chartHeight - bottomPadding;
+  const makeArea = (linePath: string) =>
+    linePath
+      ? `${linePath} L ${points[points.length - 1]?.x ?? leftPadding} ${baselineY} L ${points[0]?.x ?? leftPadding} ${baselineY} Z`
+      : '';
+
+  const highAreaPath   = makeArea(highLinePath);
+  const mediumAreaPath = makeArea(mediumLinePath);
+  const lowAreaPath    = makeArea(lowLinePath);
+
+  // 4 gridlines — cleaner than 5
+  const gridLevels = Array.from({ length: 4 }, (_, i) => ({
+    value: Math.round((maxY / 3) * i),
+    y: topPadding + ((3 - i) / 3) * innerHeight,
+  }));
 
   return (
     <section className="mb-8 ui-card-elevated p-6">
-      <div className="flex items-end justify-between mb-4">
+      {/* Card header */}
+      <div className="flex items-start justify-between mb-5">
         <div>
-          <h2 className="font-black text-slate-900 tracking-tight text-lg">Security Risk Trend</h2>
-          <p className="text-xs text-slate-600 mt-1">Hourly investigation volume by severity over the past 24 hours (open + closed)</p>
+          <h2 className="font-black tracking-tight text-base" style={{ color: 'var(--text-1)' }}>
+            Security Risk Trend
+          </h2>
+          <p className="text-xs mt-0.5 font-medium" style={{ color: 'var(--text-3)' }}>
+            Hourly investigation volume by severity · past 24 hours
+          </p>
         </div>
-        <div className="flex items-center gap-3 text-[11px] font-semibold">
-          <span className="inline-flex items-center text-slate-600"><i className="w-2.5 h-2.5 rounded-full bg-[#ef4444] mr-1.5" />High</span>
-          <span className="inline-flex items-center text-slate-600"><i className="w-2.5 h-2.5 rounded-full bg-[#facc15] mr-1.5" />Medium</span>
-          <span className="inline-flex items-center text-slate-600"><i className="w-2.5 h-2.5 rounded-full bg-[#22c55e] mr-1.5" />Low</span>
+        {/* Legend — small line segments, more refined than dots */}
+        <div className="flex items-center gap-5 text-[11px] font-semibold" style={{ color: 'var(--text-2)' }}>
+          {([['high','High'],['medium','Medium'],['low','Low']] as const).map(([key, label]) => (
+            <span key={key} className="inline-flex items-center gap-1.5">
+              <span style={{ display: 'inline-block', width: 14, height: 2, borderRadius: 2, background: CHART_COLORS[key].line }} />
+              {label}
+            </span>
+          ))}
         </div>
       </div>
 
       {loading ? (
-        <div className="h-56 flex items-center justify-center text-slate-500 text-sm">
-          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+        <div className="h-56 flex items-center justify-center gap-2 text-sm" style={{ color: 'var(--text-3)' }}>
+          <RefreshCw className="w-3.5 h-3.5 animate-spin" style={{ color: 'var(--brand)' }} />
           Building risk trend...
         </div>
       ) : points.length === 0 ? (
-        <div className="h-56 flex items-center justify-center text-slate-500 text-sm">
+        <div className="h-56 flex items-center justify-center text-sm" style={{ color: 'var(--text-3)' }}>
           No investigation data available yet.
         </div>
       ) : (
         <div className="relative">
           <svg
             viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-            className="w-full h-56 transition-opacity duration-700 opacity-100"
+            className="w-full"
+            style={{ height: 224 }}
             onMouseLeave={() => setHoverIndex(null)}
           >
             <defs>
-              <linearGradient id="highGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#ef4444" stopOpacity="0.22" />
-                <stop offset="100%" stopColor="#ef4444" stopOpacity="0.02" />
-              </linearGradient>
-              <linearGradient id="mediumGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#facc15" stopOpacity="0.22" />
-                <stop offset="100%" stopColor="#facc15" stopOpacity="0.02" />
-              </linearGradient>
-              <linearGradient id="lowGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#22c55e" stopOpacity="0.22" />
-                <stop offset="100%" stopColor="#22c55e" stopOpacity="0.02" />
-              </linearGradient>
+              {/* Area fill gradients — very subtle */}
+              {(['high','medium','low'] as const).map((key) => (
+                <linearGradient key={key} id={`${key}AreaGrad`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%"   stopColor={CHART_COLORS[key].line} stopOpacity="0.12" />
+                  <stop offset="100%" stopColor={CHART_COLORS[key].line} stopOpacity="0"    />
+                </linearGradient>
+              ))}
+              {/* Glow filter for hover dots */}
+              <filter id="dotGlow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="2.5" result="blur" />
+                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
             </defs>
 
-            {Array.from({ length: 5 }).map((_, index) => {
-              const level = Math.round((maxY / 4) * index);
-              const y = topPadding + ((4 - index) / 4) * innerHeight;
-              return (
-                <g key={`${level}-${index}`}>
-                  <line x1={leftPadding} y1={y} x2={chartWidth - rightPadding} y2={y} stroke="#e2e8f0" strokeWidth="1" />
-                  <text x={8} y={y + 4} className="fill-slate-400 text-[10px] font-semibold">
-                    {level}
-                  </text>
-                </g>
-              );
-            })}
-            <text x={6} y={14} className="fill-slate-500 text-[10px] font-bold">
-              Count
-            </text>
-            <text x={chartWidth - 52} y={chartHeight - 8} className="fill-slate-500 text-[10px] font-bold">
-              Time
-            </text>
+            {/* Gridlines */}
+            {gridLevels.map(({ value, y }) => (
+              <g key={value}>
+                <line
+                  x1={leftPadding} y1={y}
+                  x2={chartWidth - rightPadding} y2={y}
+                  stroke="rgba(255,255,255,0.07)" strokeWidth="1"
+                />
+                <text
+                  x={leftPadding - 8} y={y + 4}
+                  textAnchor="end"
+                  fontSize="9" fontWeight="600"
+                  fill="rgba(180,200,230,0.35)"
+                >
+                  {value}
+                </text>
+              </g>
+            ))}
 
-            {lowAreaPath && <path d={lowAreaPath} fill="url(#lowGradient)" />}
-            {mediumAreaPath && <path d={mediumAreaPath} fill="url(#mediumGradient)" />}
-            {highAreaPath && <path d={highAreaPath} fill="url(#highGradient)" />}
+            {/* Baseline */}
+            <line
+              x1={leftPadding} y1={baselineY}
+              x2={chartWidth - rightPadding} y2={baselineY}
+              stroke="rgba(255,255,255,0.12)" strokeWidth="1"
+            />
 
-            {lowLinePath && (
-              <path
-                d={lowLinePath}
-                fill="none"
-                stroke="#22c55e"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeDasharray="1200"
-                strokeDashoffset="1200"
-              >
-                <animate attributeName="stroke-dashoffset" from="1200" to="0" dur="900ms" fill="freeze" />
-              </path>
-            )}
-            {mediumLinePath && (
-              <path
-                d={mediumLinePath}
-                fill="none"
-                stroke="#facc15"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeDasharray="1200"
-                strokeDashoffset="1200"
-              >
-                <animate attributeName="stroke-dashoffset" from="1200" to="0" dur="1s" fill="freeze" />
-              </path>
-            )}
-            {highLinePath && (
-              <path
-                d={highLinePath}
-                fill="none"
-                stroke="#ef4444"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeDasharray="1200"
-                strokeDashoffset="1200"
-              >
-                <animate attributeName="stroke-dashoffset" from="1200" to="0" dur="1100ms" fill="freeze" />
-              </path>
+            {/* Area fills — animate opacity in */}
+            {lowAreaPath   && <path className="chart-area-reveal" d={lowAreaPath}   fill="url(#lowAreaGrad)"    />}
+            {mediumAreaPath && <path className="chart-area-reveal" d={mediumAreaPath} fill="url(#mediumAreaGrad)" />}
+            {highAreaPath  && <path className="chart-area-reveal" d={highAreaPath}   fill="url(#highAreaGrad)"   />}
+
+            {/* Lines — draw-on animation */}
+            {([
+              { path: lowLinePath,    color: CHART_COLORS.low.line,    dur: '800ms'  },
+              { path: mediumLinePath, color: CHART_COLORS.medium.line,  dur: '950ms'  },
+              { path: highLinePath,   color: CHART_COLORS.high.line,    dur: '1100ms' },
+            ] as const).map(({ path, color, dur }) =>
+              path ? (
+                <path
+                  key={color}
+                  d={path}
+                  fill="none"
+                  stroke={color}
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeDasharray="2000"
+                  strokeDashoffset="2000"
+                >
+                  <animate attributeName="stroke-dashoffset" from="2000" to="0" dur={dur} fill="freeze" />
+                </path>
+              ) : null
             )}
 
+            {/* Hover capture bands */}
             {points.map((point, index) => {
               const prevX = points[index - 1]?.x ?? leftPadding;
               const nextX = points[index + 1]?.x ?? (chartWidth - rightPadding);
               const bandStart = index === 0 ? leftPadding : (prevX + point.x) / 2;
-              const bandEnd = index === points.length - 1 ? chartWidth - rightPadding : (point.x + nextX) / 2;
+              const bandEnd   = index === points.length - 1 ? chartWidth - rightPadding : (point.x + nextX) / 2;
               return (
                 <rect
-                  key={`hover-band-${point.timestamp}-${index}`}
-                  x={bandStart}
-                  y={topPadding}
-                  width={Math.max(2, bandEnd - bandStart)}
-                  height={innerHeight}
+                  key={`band-${index}`}
+                  x={bandStart} y={topPadding}
+                  width={Math.max(2, bandEnd - bandStart)} height={innerHeight}
                   fill="transparent"
                   onMouseEnter={() => setHoverIndex(index)}
                 />
               );
             })}
 
+            {/* Hover crosshair */}
             {hoverIndex !== null && points[hoverIndex] && (
               <line
-                x1={points[hoverIndex].x}
-                y1={topPadding}
-                x2={points[hoverIndex].x}
-                y2={chartHeight - bottomPadding}
-                stroke="#94a3b8"
+                x1={points[hoverIndex].x} y1={topPadding}
+                x2={points[hoverIndex].x} y2={baselineY}
+                stroke="rgba(255,255,255,0.14)"
                 strokeWidth="1"
                 strokeDasharray="3 4"
               />
             )}
 
+            {/* Hover dots */}
             {points.map((point, index) => (
-              <g key={`${point.timestamp}-${index}`}>
-                <circle
-                  cx={point.x}
-                  cy={point.yHigh}
-                  r={hoverIndex === index ? 4.5 : 0}
-                  fill="#ef4444"
-                  stroke="#fff"
-                  strokeWidth="1.5"
-                />
-                <circle cx={point.x} cy={point.yMedium} r={hoverIndex === index ? 4.5 : 0} fill="#facc15" stroke="#fff" strokeWidth="1.5" />
-                <circle cx={point.x} cy={point.yLow} r={hoverIndex === index ? 4.5 : 0} fill="#22c55e" stroke="#fff" strokeWidth="1.5" />
+              <g key={`dot-${index}`} filter={hoverIndex === index ? 'url(#dotGlow)' : undefined}>
+                {([
+                  { cy: point.yHigh,   color: CHART_COLORS.high.dot   },
+                  { cy: point.yMedium, color: CHART_COLORS.medium.dot  },
+                  { cy: point.yLow,    color: CHART_COLORS.low.dot     },
+                ] as const).map(({ cy, color }) => (
+                  <circle
+                    key={color}
+                    cx={point.x} cy={cy}
+                    r={hoverIndex === index ? 4 : 0}
+                    fill={color}
+                    stroke="rgba(15,25,40,0.9)"
+                    strokeWidth="1.5"
+                  />
+                ))}
               </g>
             ))}
 
-            {points.map((point, index) => (
-              index % 3 === 0 || index === points.length - 1 ? (
-                <text key={`x-${point.timestamp}-${index}`} x={point.x} y={chartHeight - 8} textAnchor="middle" className="fill-slate-400 text-[10px] font-semibold">
+            {/* X-axis time labels */}
+            {points.map((point, index) =>
+              (index % 3 === 0 || index === points.length - 1) ? (
+                <text
+                  key={`xlabel-${index}`}
+                  x={point.x} y={chartHeight - 10}
+                  textAnchor="middle"
+                  fontSize="9" fontWeight="600"
+                  fill="rgba(180,200,230,0.35)"
+                >
                   {formatTrendLabel(point.timestamp)}
                 </text>
               ) : null
-            ))}
+            )}
           </svg>
 
+          {/* Hover tooltip */}
           {hoverIndex !== null && points[hoverIndex] && (
-            <div className="absolute right-3 top-3 w-72 bg-[#0a1324] text-slate-100 rounded-2xl p-3 text-xs shadow-2xl border border-slate-700">
-              <p className="font-bold text-[11px]">{formatTrendTooltip(points[hoverIndex].timestamp)}</p>
-              <p className="mt-1 text-slate-300">Investigations: {points[hoverIndex].totalCases}</p>
-              <p className="text-slate-300">
-                High {points[hoverIndex].highCount} | Medium {points[hoverIndex].mediumCount} | Low {points[hoverIndex].lowCount}
+            <div
+              className="absolute right-3 top-2 w-60 rounded-2xl p-3.5 text-xs shadow-2xl"
+              style={{
+                background: 'var(--surface-1)',
+                border: '1px solid var(--border-soft)',
+                color: 'var(--text-1)',
+              }}
+            >
+              <p className="font-bold mb-2 text-[11px]" style={{ color: 'var(--text-2)' }}>
+                {formatTrendTooltip(points[hoverIndex].timestamp)}
               </p>
+              <div className="space-y-1">
+                {([
+                  { label: 'High',   value: points[hoverIndex].highCount,   color: CHART_COLORS.high.dot   },
+                  { label: 'Medium', value: points[hoverIndex].mediumCount,  color: CHART_COLORS.medium.dot  },
+                  { label: 'Low',    value: points[hoverIndex].lowCount,     color: CHART_COLORS.low.dot     },
+                ] as const).map(({ label, value, color }) => (
+                  <div key={label} className="flex items-center justify-between">
+                    <span className="inline-flex items-center gap-1.5" style={{ color: 'var(--text-2)' }}>
+                      <span style={{ display:'inline-block', width:8, height:8, borderRadius:'50%', background: color }} />
+                      {label}
+                    </span>
+                    <span className="font-black" style={{ color }}>{value}</span>
+                  </div>
+                ))}
+                <div className="border-t pt-1.5 mt-1.5 flex justify-between" style={{ borderColor: 'var(--border-soft)' }}>
+                  <span style={{ color: 'var(--text-3)' }}>Total</span>
+                  <span className="font-bold" style={{ color: 'var(--text-1)' }}>{points[hoverIndex].totalCases}</span>
+                </div>
+              </div>
             </div>
           )}
 
           {!hasAnyData && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="text-[11px] font-semibold text-slate-500 bg-white/85 px-3 py-1.5 rounded-lg border border-slate-200">
-                No investigations in most of the past 24 hours.
+              <div
+                className="text-[11px] font-semibold px-3 py-1.5 rounded-lg"
+                style={{ color: 'var(--text-3)', background: 'rgba(15,25,40,0.7)', border: '1px solid var(--border-soft)' }}
+              >
+                No investigations in the past 24 hours
               </div>
             </div>
           )}

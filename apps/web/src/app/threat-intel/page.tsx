@@ -136,10 +136,10 @@ export default function ThreatIntelPage() {
             </form>
           </div>
 
-          <div className="mt-6 bg-blue-50/80 rounded-2xl p-6 border border-blue-100">
+          <div className="mt-6 rounded-2xl p-5 border" style={{ background: 'rgba(68,136,245,0.07)', borderColor: 'rgba(68,136,245,0.2)' }}>
             <div className="flex items-start space-x-3">
-              <Info className="w-5 h-5 text-blue-600 mt-0.5" />
-              <div className="text-xs text-blue-800 leading-relaxed font-medium">
+              <Info className="w-4 h-4 mt-0.5 shrink-0" style={{ color: '#4488f5' }} />
+              <div className="text-xs leading-relaxed font-medium" style={{ color: 'var(--text-2)' }}>
                 Sentry aggregates data from VirusTotal, IPInfo, and internal honeypots to provide confidence intervals on infrastructure reputation.
               </div>
             </div>

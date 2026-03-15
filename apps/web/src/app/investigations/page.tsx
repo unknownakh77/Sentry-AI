@@ -60,8 +60,8 @@ export default function InvestigationsPage() {
           <h1 className="ui-title text-3xl">Active Investigations</h1>
           <p className="ui-subtitle mt-1">Open SOC investigations requiring active analyst workflow</p>
         </div>
-        <button 
-          onClick={fetchCases} 
+        <button
+          onClick={fetchCases}
           className="ui-btn-secondary"
         >
           <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin text-blue-500' : ''}`} />
@@ -72,8 +72,8 @@ export default function InvestigationsPage() {
       {/* Filters Header */}
       <div className="ui-card p-4 mb-6 flex items-center space-x-4">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-2.5 w-5 h-5 text-slate-400" />
-          <input 
+          <Search className="absolute left-3 top-2.5 w-5 h-5" style={{ color: 'var(--text-3)' }} />
+          <input
             type="text"
             placeholder="Search by Case ID, Classification, or Type..."
             value={searchTerm}
@@ -84,13 +84,16 @@ export default function InvestigationsPage() {
         <div className="relative">
           <button
             onClick={() => setShowFilters((previous) => !previous)}
-            className="ui-btn-secondary text-sm font-medium text-slate-600"
+            className="ui-btn-secondary text-sm font-medium"
           >
             <Filter className="w-4 h-4 mr-2" />
             Filter
           </button>
           {showFilters && (
-            <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-xl shadow-xl z-20 p-3 space-y-3">
+            <div
+              className="absolute right-0 mt-2 w-64 rounded-xl shadow-xl z-20 p-3 space-y-3"
+              style={{ background: 'var(--surface-2)', border: '1px solid var(--border-soft)' }}
+            >
               <FilterGroup
                 label="Risk level"
                 value={sortOption}
@@ -124,7 +127,7 @@ export default function InvestigationsPage() {
       <div className="ui-card-elevated overflow-hidden">
         <div className="overflow-x-auto">
           {sortedFilteredCases.length === 0 && !loading ? (
-            <div className="p-12 text-center text-slate-600 font-medium">No active investigations found matching your criteria.</div>
+            <div className="p-12 text-center font-medium" style={{ color: 'var(--text-2)' }}>No active investigations found matching your criteria.</div>
           ) : (
             <table className="ui-table w-full text-left text-sm">
               <thead>
@@ -137,36 +140,44 @@ export default function InvestigationsPage() {
                   <th className="px-8 py-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody style={{ borderColor: 'var(--border-soft)' }}>
                 {sortedFilteredCases.map((c: any) => (
-                  <tr key={c.caseId} className="transition-colors group">
+                  <tr key={c.caseId} className="transition-colors group" style={{ borderBottom: '1px solid var(--border-soft)' }}>
                     <td className="px-8 py-5">
                       <div className="flex items-center space-x-4">
-                        <div className="p-2.5 bg-slate-100 rounded-xl group-hover:bg-white transition-colors border border-transparent group-hover:border-blue-100">
+                        <div
+                          className="p-2.5 rounded-xl transition-colors"
+                          style={{ background: 'var(--surface-1)', border: '1px solid var(--border-soft)' }}
+                        >
                           <EventIcon type={c.eventType} />
                         </div>
                         <div>
-                          <div className="font-bold text-slate-900 font-mono text-xs mb-0.5">{c.caseId.split('-')[0]}...{c.caseId.split('-')[4]}</div>
-                          <div className="text-xs text-slate-500 capitalize">{formatEventTypeLabel(c.eventType)} Event</div>
+                          <div className="font-bold font-mono text-xs mb-0.5" style={{ color: 'var(--text-1)' }}>
+                            {c.caseId.split('-')[0]}...{c.caseId.split('-')[4]}
+                          </div>
+                          <div className="text-xs capitalize" style={{ color: 'var(--text-3)' }}>{formatEventTypeLabel(c.eventType)} Event</div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-5 text-slate-600 font-medium">
+                    <td className="px-6 py-5 font-medium" style={{ color: 'var(--text-2)' }}>
                       {formatCaseAge(c.createdAt)}
-                      <div className="text-[10px] text-slate-400 mt-1 font-mono">{new Date(c.createdAt).toLocaleTimeString()}</div>
+                      <div className="text-[10px] mt-1 font-mono" style={{ color: 'var(--text-3)' }}>{new Date(c.createdAt).toLocaleTimeString()}</div>
                     </td>
                     <td className="px-6 py-5">
                       <div className="flex flex-col space-y-2">
                         <RiskBadge classification={c.classification} tone="muted" />
-                        <span className="text-[10px] font-mono font-bold text-slate-400 ml-1">SCORE: {c.riskScore}</span>
+                        <span className="text-[10px] font-mono font-bold ml-1" style={{ color: 'var(--text-3)' }}>SCORE: {c.riskScore}</span>
                       </div>
                     </td>
                     <td className="px-6 py-5">
                       <div className="flex flex-col space-y-1">
-                        <span className="inline-flex items-center text-[10px] font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded uppercase tracking-wider w-fit border border-blue-100">
+                        <span
+                          className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider w-fit"
+                          style={{ color: '#4488f5', background: 'rgba(68,136,245,0.1)', border: '1px solid rgba(68,136,245,0.25)' }}
+                        >
                           {formatActionLabel(c.action)}
                         </span>
-                        <div className="flex items-center text-[10px] text-slate-400">
+                        <div className="flex items-center text-[10px]" style={{ color: 'var(--text-3)' }}>
                           <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${c.actionStatus === 'executed' ? 'bg-green-500' : 'bg-amber-500'}`} />
                           {c.actionStatus.replace('_', ' ')}
                         </div>
@@ -178,7 +189,18 @@ export default function InvestigationsPage() {
                     <td className="px-8 py-5 text-right">
                       <Link
                         href={`/case/${c.caseId}`}
-                        className="inline-flex items-center justify-center p-2 rounded-xl bg-slate-100 text-slate-500 hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-slate-200"
+                        className="inline-flex items-center justify-center p-2 rounded-xl transition-all"
+                        style={{ background: 'var(--surface-1)', color: 'var(--text-2)', border: '1px solid var(--border-soft)' }}
+                        onMouseEnter={(e) => {
+                          (e.currentTarget as HTMLElement).style.background = '#4488f5';
+                          (e.currentTarget as HTMLElement).style.color = '#fff';
+                          (e.currentTarget as HTMLElement).style.borderColor = '#4488f5';
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLElement).style.background = 'var(--surface-1)';
+                          (e.currentTarget as HTMLElement).style.color = 'var(--text-2)';
+                          (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-soft)';
+                        }}
                       >
                         <ChevronRight className="w-5 h-5" />
                       </Link>
@@ -194,17 +216,20 @@ export default function InvestigationsPage() {
   );
 }
 
-const VERDICT_STYLES: Record<string, { label: string; cls: string }> = {
-  pending_review: { label: 'Pending Review', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
-  confirmed:      { label: 'Confirmed',      cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  overridden:     { label: 'Overridden',     cls: 'bg-orange-50 text-orange-700 border-orange-200' },
-  escalated:      { label: 'Escalated',      cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+const VERDICT_STYLES: Record<string, { label: string; color: string; bg: string; border: string }> = {
+  pending_review: { label: 'Pending Review', color: '#d4922a', bg: 'rgba(212,144,42,0.1)',  border: 'rgba(212,144,42,0.3)' },
+  confirmed:      { label: 'Confirmed',      color: '#22b59c', bg: 'rgba(34,181,154,0.1)',  border: 'rgba(34,181,154,0.3)' },
+  overridden:     { label: 'Overridden',     color: '#f97316', bg: 'rgba(249,115,22,0.1)',  border: 'rgba(249,115,22,0.3)' },
+  escalated:      { label: 'Escalated',      color: '#818cf8', bg: 'rgba(129,140,248,0.1)', border: 'rgba(129,140,248,0.3)' },
 };
 
 function VerdictBadge({ status }: { status: string }) {
   const v = VERDICT_STYLES[status] || VERDICT_STYLES.pending_review;
   return (
-    <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${v.cls}`}>
+    <span
+      className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider"
+      style={{ color: v.color, background: v.bg, border: `1px solid ${v.border}` }}
+    >
       {v.label}
     </span>
   );
@@ -223,15 +248,18 @@ function FilterGroup({
 }) {
   return (
     <div>
-      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">{label}</p>
+      <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-3)' }}>{label}</p>
       <div className="space-y-1">
         {options.map((option) => (
           <button
             key={option.value}
             onClick={() => onChange(option.value)}
-            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition ${
-              value === option.value ? 'bg-blue-50 text-blue-700 font-semibold border border-blue-100' : 'hover:bg-slate-50 text-slate-600 border border-transparent'
-            }`}
+            className="w-full text-left px-3 py-2 rounded-lg text-sm transition"
+            style={
+              value === option.value
+                ? { background: 'rgba(68,136,245,0.12)', color: '#4488f5', fontWeight: 600, border: '1px solid rgba(68,136,245,0.25)' }
+                : { background: 'transparent', color: 'var(--text-2)', border: '1px solid transparent' }
+            }
           >
             {option.label}
           </button>

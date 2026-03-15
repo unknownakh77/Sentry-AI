@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const EventTypeSchema = z.enum(['login', 'phishing_email', 'url_click', 'file_hash']);
+export const EventTypeSchema = z.enum(['login', 'phishing_email', 'url_click', 'file_hash', 'transaction']);
 export type EventType = z.infer<typeof EventTypeSchema>;
 
 export const NormalizedEventSchema = z.object({
@@ -18,6 +18,11 @@ export const NormalizedEventSchema = z.object({
     device: z.string().nullable().optional(),
     alertDescription: z.string().nullable().optional(),
     additionalLogs: z.string().nullable().optional(),
+    transactionAmount: z.number().nullable().optional(),
+    transactionCurrency: z.string().nullable().optional(),
+    transactionMerchant: z.string().nullable().optional(),
+    transactionRegion: z.string().nullable().optional(),
+    transactionType: z.string().nullable().optional(),
   }),
   context: z.object({
     mfaUsed: z.boolean().default(false),
@@ -56,13 +61,15 @@ export const RiskClassificationSchema = z.enum(['LOW', 'MEDIUM', 'HIGH']);
 export type RiskClassification = z.infer<typeof RiskClassificationSchema>;
 
 export const ActionResultSchema = z.enum([
-  'allow', 
-  'analyst_review', 
-  'block_session', 
-  'require_mfa', 
-  'quarantine_email', 
-  'block_url', 
-  'isolate_file'
+  'allow',
+  'analyst_review',
+  'block_session',
+  'require_mfa',
+  'quarantine_email',
+  'block_url',
+  'isolate_file',
+  'block_transaction',
+  'freeze_account',
 ]);
 export type ActionResult = z.infer<typeof ActionResultSchema>;
 
